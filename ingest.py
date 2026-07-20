@@ -1,7 +1,8 @@
 import requests
 import json
 from pathlib import Path
-from minsearch import Index
+from sqlitesearch import VectorSearchIndex
+from embedder import Embedder
 
 def fetch_handbook_documents() -> list[dict[str, str]]:
     owner = "madetech"
@@ -43,6 +44,16 @@ def fetch_handbook_documents() -> list[dict[str, str]]:
 
     return files
 
+def load_documents_from_json(
+    input_path: str = "data/employee_handbook_documents.json",
+) -> list[dict[str, str]]:
+    path = Path(input_path)
+
+    with path.open("r", encoding="utf-8") as f:
+        documents = json.load(f)
+
+    return documents
+
 def save_documents_to_json(
     documents: list[dict[str, str]],
     output_path: str = "data/employee_handbook_documents.json",
@@ -57,8 +68,16 @@ def save_documents_to_json(
 
 
 def build_index(documents):
-    index = Index(
-        text_fields=["content"]
+    db_path = "employee_handbook_vectors.db"
+    index = VectorSearchIndex(
+        mode="ivf",
+        db_path=db_path
     )
-    index.fit(documents)
+
+    if Path(db_path).exists():
+        return index
+
+    embed = Embedder()
+    vectors = embed.encode_batch([d["content"] for d in documents])
+    index.fit(vectors, documents)
     return index

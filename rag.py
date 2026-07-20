@@ -79,14 +79,12 @@ class RAG:
         llm_client,
         instructions=INSTRUCTIONS,
         prompt_template=PROMPT_TEMPLATE,
-        course="llm-zoomcamp",
         model=os.getenv("LLM_MODEL"),
     ):
         self.index = index
         self.embedder = embedder
         self.llm_client = llm_client
         self.instructions = instructions
-        self.course = course
         self.prompt_template = prompt_template
         self.model = model
 
