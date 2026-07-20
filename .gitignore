@@ -4,3 +4,4 @@ models/
 data/
 *.db
 *.db*
+.env
