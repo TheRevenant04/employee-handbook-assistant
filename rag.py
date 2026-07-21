@@ -1,3 +1,4 @@
+from psycopg import sql
 from dotenv import load_dotenv
 import os
 
@@ -74,27 +75,45 @@ CONTEXT:
 class RAG:
     def __init__(
         self,
-        index,
         embedder,
+        db_connection,
         llm_client,
         instructions=INSTRUCTIONS,
         prompt_template=PROMPT_TEMPLATE,
         model=os.getenv("LLM_MODEL"),
     ):
-        self.index = index
         self.embedder = embedder
+        self.db_connection = db_connection
         self.llm_client = llm_client
         self.instructions = instructions
         self.prompt_template = prompt_template
         self.model = model
 
-    def search(self, query, num_results=5):
-        query_vector = self.embedder.encode(query)
-
-        return self.index.search(
-            query_vector,
-            num_results=num_results
-        )
+    def search(self, query_text, num_results=5):
+            query_vector = self.embedder.encode(query_text, normalize=True)
+    
+            with self.db_connection.cursor() as cur:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT id, path, content, embedding <=> %s AS distance
+                        FROM employee_handbook
+                        ORDER BY embedding <=> %s
+                        LIMIT %s
+                        """
+                    ),
+                    (query_vector, query_vector, num_results),
+                )
+                rows = cur.fetchall()
+            return [
+                {
+                    "id": row[0],
+                    "path": row[1],
+                    "content": row[2],
+                    "distance": float(row[3]),
+                }
+                for row in rows
+            ]
 
     def build_context(self, search_results):
         lines = []

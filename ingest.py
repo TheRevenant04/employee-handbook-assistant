@@ -1,8 +1,8 @@
 import requests
 import json
 from pathlib import Path
-from sqlitesearch import VectorSearchIndex
-from embedder import Embedder
+from indexer import PostgresVectorIndex
+from db import get_db_connection
 
 def fetch_handbook_documents() -> list[dict[str, str]]:
     owner = "madetech"
@@ -68,16 +68,9 @@ def save_documents_to_json(
 
 
 def build_index(documents):
-    db_path = "employee_handbook_vectors.db"
-    index = VectorSearchIndex(
-        mode="ivf",
-        db_path=db_path
-    )
-
-    if Path(db_path).exists():
-        return index
-
-    embed = Embedder()
-    vectors = embed.encode_batch([d["content"] for d in documents])
-    index.fit(vectors, documents)
-    return index
+    conn = get_db_connection()
+    try:
+        index = PostgresVectorIndex(conn, table_name="employee_handbook")
+        return index.build_if_missing(documents)
+    finally:
+        conn.close()

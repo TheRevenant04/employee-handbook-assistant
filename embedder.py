@@ -31,8 +31,14 @@ class Embedder:
                 [e.type_ids for e in encoded], dtype=np.int64
             )
         hidden = self.session.run(None, feed)[0]
-        mask = feed["attention_mask"][..., None]
-        pooled = (hidden * mask).sum(axis=1) / mask.sum(axis=1)
+
+        if "attention_mask" in feed:
+            mask = feed["attention_mask"][..., None]
+            pooled = (hidden * mask).sum(axis=1) / mask.sum(axis=1)
+        else:
+            pooled = hidden.mean(axis=1)
+
         if normalize:
             pooled = pooled / np.linalg.norm(pooled, axis=1, keepdims=True)
+
         return pooled
