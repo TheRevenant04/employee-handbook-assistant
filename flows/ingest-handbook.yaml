@@ -1,0 +1,243 @@
+id: ingest-handbook
+namespace: employee.handbook
+description: >
+  Fetches .md files from the madetech/handbook GitHub repo,
+  embeds them using all-MiniLM-L6-v2, and stores them in PostgreSQL with pgvector.
+
+tasks:
+  - id: ingest
+    type: io.kestra.plugin.scripts.python.Script
+    inputFiles:
+      embedder.py: |
+        import numpy as np
+        import onnxruntime as ort
+        from tokenizers import Tokenizer
+        from pathlib import Path
+
+
+        class Embedder:
+            def __init__(self, path="models/Xenova/all-MiniLM-L6-v2"):
+                path = Path(path)
+                self.tokenizer = Tokenizer.from_file(str(path / "tokenizer.json"))
+                self.session = ort.InferenceSession(
+                    str(path / "model.onnx"), providers=["CPUExecutionProvider"]
+                )
+                self.input_names = {inp.name for inp in self.session.get_inputs()}
+
+            def encode(self, text, normalize=True):
+                return self.encode_batch([text], normalize=normalize)[0]
+
+            def encode_batch(self, texts, normalize=True):
+                self.tokenizer.enable_padding()
+                encoded = self.tokenizer.encode_batch(texts)
+                feed = {}
+                if "input_ids" in self.input_names:
+                    feed["input_ids"] = np.array([e.ids for e in encoded], dtype=np.int64)
+                if "attention_mask" in self.input_names:
+                    feed["attention_mask"] = np.array(
+                        [e.attention_mask for e in encoded], dtype=np.int64
+                    )
+                if "token_type_ids" in self.input_names:
+                    feed["token_type_ids"] = np.array(
+                        [e.type_ids for e in encoded], dtype=np.int64
+                    )
+                hidden = self.session.run(None, feed)[0]
+
+                if "attention_mask" in feed:
+                    mask = feed["attention_mask"][..., None]
+                    pooled = (hidden * mask).sum(axis=1) / mask.sum(axis=1)
+                else:
+                    pooled = hidden.mean(axis=1)
+
+                if normalize:
+                    pooled = pooled / np.linalg.norm(pooled, axis=1, keepdims=True)
+
+                return pooled
+    beforeCommands:
+      - pip install requests "psycopg[binary]" pgvector numpy onnxruntime tokenizers huggingface-hub > /dev/null 2>&1
+      - python -c "from huggingface_hub import hf_hub_download, list_repo_files; import shutil, os; repo='Xenova/all-MiniLM-L6-v2'; dest='models/Xenova/all-MiniLM-L6-v2'; os.makedirs(dest, exist_ok=True); files=list_repo_files(repo_id=repo); [shutil.copy2(hf_hub_download(repo_id=repo, filename=f), os.path.join(dest, 'model.onnx' if 'onnx' in f and f.endswith('.onnx') and 'data' not in f else 'tokenizer.json' if f=='tokenizer.json' else 'model.onnx_data' if f.endswith('_data') else f)) for f in files if f.endswith('.json') or f.endswith('.onnx') or f.endswith('_data')]"
+    script: |
+      import os
+      import sys
+      import json
+      import logging
+      import requests
+      import psycopg
+      from pathlib import Path
+      from psycopg import sql
+      from pgvector.psycopg import register_vector
+
+      logging.basicConfig(
+          level=logging.INFO,
+          format="%(asctime)s [%(levelname)s] %(message)s",
+      )
+      logger = logging.getLogger(__name__)
+
+      GITHUB_OWNER = os.getenv("GITHUB_OWNER", "madetech")
+      GITHUB_REPO = os.getenv("GITHUB_REPO", "handbook")
+      GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
+
+      PGDATABASE = os.getenv("PGDATABASE", "employee_handbook")
+      PGUSER = os.getenv("PGUSER", "user")
+      PGPASSWORD = os.getenv("PGPASSWORD", "password")
+      PGHOST = os.getenv("PGHOST", "localhost")
+      PGPORT = int(os.getenv("PGPORT", "5432"))
+
+      TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
+      VECTOR_DIM = int(os.getenv("VECTOR_DIM", "384"))
+      MODEL_PATH = os.getenv("MODEL_PATH", "models/Xenova/all-MiniLM-L6-v2")
+
+
+      def get_db_connection():
+          conn = psycopg.connect(
+              dbname=PGDATABASE,
+              user=PGUSER,
+              password=PGPASSWORD,
+              host=PGHOST,
+              port=PGPORT,
+          )
+          with conn.cursor() as cur:
+              cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+          conn.commit()
+          register_vector(conn)
+          return conn
+
+
+      def init_db(conn):
+          with conn.cursor() as cur:
+              cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+              cur.execute(
+                  sql.SQL(
+                      """
+                      CREATE TABLE IF NOT EXISTS {table} (
+                          id BIGSERIAL PRIMARY KEY,
+                          path TEXT UNIQUE NOT NULL,
+                          content TEXT NOT NULL,
+                          embedding VECTOR({dim}) NOT NULL
+                      );
+                      """
+                  ).format(
+                      table=sql.Identifier(TABLE_NAME),
+                      dim=sql.SQL(str(VECTOR_DIM)),
+                  )
+              )
+              cur.execute(
+                  sql.SQL(
+                      """
+                      CREATE INDEX IF NOT EXISTS {index_name}
+                      ON {table}
+                      USING hnsw (embedding vector_cosine_ops);
+                      """
+                  ).format(
+                      index_name=sql.Identifier(f"{TABLE_NAME}_embedding_hnsw_idx"),
+                      table=sql.Identifier(TABLE_NAME),
+                  )
+              )
+          conn.commit()
+          logger.info("Database initialized with table '%s'", TABLE_NAME)
+
+
+      def fetch_markdown_files() -> list[dict[str, str]]:
+          session = requests.Session()
+          session.headers.update(
+              {
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "kestra-ingest-worker",
+              }
+          )
+
+          tree_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/git/trees/{GITHUB_BRANCH}?recursive=1"
+          logger.info("Fetching file tree from %s", tree_url)
+          tree_response = session.get(tree_url, timeout=30)
+          tree_response.raise_for_status()
+          tree_data = tree_response.json()
+
+          markdown_paths = [
+              item["path"]
+              for item in tree_data.get("tree", [])
+              if item.get("type") == "blob" and item.get("path", "").endswith(".md")
+          ]
+          logger.info("Found %d markdown files", len(markdown_paths))
+
+          files: list[dict[str, str]] = []
+          for i, path in enumerate(markdown_paths, 1):
+              raw_url = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{path}"
+              response = session.get(raw_url, timeout=30)
+              response.raise_for_status()
+              files.append({"path": path, "content": response.text})
+
+              if i % 10 == 0:
+                  logger.info("Fetched %d/%d files", i, len(markdown_paths))
+
+          logger.info("Fetched all %d markdown files", len(files))
+          return files
+
+
+      def embed_and_store(conn, documents: list[dict[str, str]]):
+          from embedder import Embedder
+
+          model_path = Path(MODEL_PATH)
+          if not model_path.exists():
+              logger.error("Model not found at %s. Download failed.", MODEL_PATH)
+              sys.exit(1)
+
+          logger.info("Loading embedding model from %s", MODEL_PATH)
+          embedder = Embedder(MODEL_PATH)
+
+          contents = [d["content"] for d in documents]
+          logger.info("Embedding %d documents...", len(contents))
+          vectors = embedder.encode_batch(contents, normalize=True)
+
+          rows = [
+              (doc["path"], doc["content"], vec)
+              for doc, vec in zip(documents, vectors)
+          ]
+
+          with conn.cursor() as cur:
+              insert_sql = sql.SQL(
+                  """
+                  INSERT INTO {table} (path, content, embedding)
+                  VALUES (%s, %s, %s)
+                  ON CONFLICT (path) DO NOTHING
+                  """
+              ).format(table=sql.Identifier(TABLE_NAME))
+              cur.executemany(insert_sql, rows)
+
+          conn.commit()
+          logger.info("Stored %d documents in PostgreSQL", len(rows))
+
+
+      logger.info("=== Employee Handbook Ingest Pipeline ===")
+      logger.info("GitHub: %s/%s @ %s", GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH)
+      logger.info("Database: %s@%s:%d/%s", PGUSER, PGHOST, PGPORT, PGDATABASE)
+
+      conn = get_db_connection()
+      try:
+          init_db(conn)
+          documents = fetch_markdown_files()
+          if not documents:
+              logger.warning("No documents found. Exiting.")
+          else:
+              embed_and_store(conn, documents)
+              logger.info("=== Ingest complete ===")
+      finally:
+          conn.close()
+
+pluginDefaults:
+  - type: io.kestra.plugin.scripts.python.Script
+    values:
+      containerImage: python:3.13-slim
+      taskRunner:
+        type: io.kestra.plugin.scripts.runner.docker.Docker
+      env:
+        GITHUB_OWNER: "{{ env('GITHUB_OWNER') }}"
+        GITHUB_REPO: "{{ env('GITHUB_REPO') }}"
+        GITHUB_BRANCH: "{{ env('GITHUB_BRANCH') }}"
+        PGHOST: "{{ env('PGHOST') }}"
+        PGPORT: "{{ env('PGPORT') }}"
+        PGDATABASE: "{{ env('PGDATABASE') }}"
+        PGUSER: "{{ env('PGUSER') }}"
+        PGPASSWORD: "{{ env('PGPASSWORD') }}"
+        TABLE_NAME: "{{ env('TABLE_NAME') }}"
+        VECTOR_DIM: "{{ env('VECTOR_DIM') }}"
+        MODEL_PATH: "{{ env('MODEL_PATH') }}"
