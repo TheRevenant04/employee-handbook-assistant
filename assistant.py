@@ -6,19 +6,22 @@ from openai import OpenAI
 
 from rag import RAG
 from embedder import Embedder
-from db import get_db_connection
+from metrics import MetricsCollector
+from chat_store import ChatStore
 
 
 def create_assistant():
     load_dotenv()
 
-    db_connection = get_db_connection()
+    chat_store = ChatStore()
+    metrics = MetricsCollector()
 
     return RAG(
-        db_connection=db_connection,
-        embedder= Embedder(),
+        embedder=Embedder(),
         llm_client=OpenAI(base_url=os.getenv("LLM_BASE_URL"), api_key=os.getenv("LLM_API_KEY")),
+        chat_store=chat_store,
         model=os.getenv("LLM_MODEL"),
+        metrics=metrics,
     )
 
 if __name__ == "__main__":
@@ -28,5 +31,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         query = sys.argv[1]
 
-    answer = assistant.rag(query)
-    print(answer)
+    conversation_id = assistant.chat_store.create_conversation(title=query[:80])
+    answer = assistant.rag(query, conversation_id=conversation_id)
+    print(answer["answer"] if isinstance(answer, dict) else answer)

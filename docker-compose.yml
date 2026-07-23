@@ -7,6 +7,8 @@ volumes:
     driver: local
   app_postgres_data:
     driver: local
+  grafana_data:
+    driver: local
 
 services:
   kestra_postgres:
@@ -16,7 +18,7 @@ services:
     environment:
       POSTGRES_DB: kestra
       POSTGRES_USER: kestra
-      POSTGRES_PASSWORD: k3str4
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 30s
@@ -28,9 +30,9 @@ services:
     volumes:
       - app_postgres_data:/var/lib/postgresql
     environment:
-      POSTGRES_DB: employee_handbook
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pswd
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "7432:5432"
     healthcheck:
@@ -58,12 +60,12 @@ services:
             url: jdbc:postgresql://kestra_postgres:5432/kestra
             driverClassName: org.postgresql.Driver
             username: kestra
-            password: k3str4
+            password: ${POSTGRES_PASSWORD}
         kestra:
           server:
             basicAuth:
-              username: "admin@kestra.io"
-              password: Admin1234!
+              username: ${KESTRA_BASIC_AUTH_USERNAME}
+              password: ${KESTRA_BASIC_AUTH_PASSWORD}
           repository:
             type: postgres
           storage:
@@ -87,5 +89,24 @@ services:
     depends_on:
       kestra_postgres:
         condition: service_started
+      app_postgres:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    ports:
+      - "3000:3000"
+    depends_on:
       app_postgres:
         condition: service_healthy

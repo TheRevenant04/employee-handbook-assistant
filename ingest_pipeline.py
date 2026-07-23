@@ -1,12 +1,11 @@
 import os
 import sys
-import json
 import logging
 import requests
-import psycopg
 from pathlib import Path
 from psycopg import sql
-from pgvector.psycopg import register_vector
+
+from db import get_db_connection
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,27 +17,9 @@ GITHUB_OWNER = os.getenv("GITHUB_OWNER", "madetech")
 GITHUB_REPO = os.getenv("GITHUB_REPO", "handbook")
 GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 
-PGDATABASE = os.getenv("PGDATABASE", "employee_handbook")
-PGUSER = os.getenv("PGUSER", "user")
-PGPASSWORD = os.getenv("PGPASSWORD", "password")
-PGHOST = os.getenv("PGHOST", "localhost")
-PGPORT = int(os.getenv("PGPORT", "5432"))
-
 TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
 VECTOR_DIM = int(os.getenv("VECTOR_DIM", "384"))
 MODEL_PATH = os.getenv("MODEL_PATH", "models/Xenova/all-MiniLM-L6-v2")
-
-
-def get_db_connection():
-    conn = psycopg.connect(
-        dbname=PGDATABASE,
-        user=PGUSER,
-        password=PGPASSWORD,
-        host=PGHOST,
-        port=PGPORT,
-    )
-    register_vector(conn)
-    return conn
 
 
 def init_db(conn):
@@ -152,7 +133,6 @@ def embed_and_store(conn, documents: list[dict[str, str]]):
 def main():
     logger.info("=== Employee Handbook Ingest Pipeline ===")
     logger.info("GitHub: %s/%s @ %s", GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH)
-    logger.info("Database: %s@%s:%d/%s", PGUSER, PGHOST, PGPORT, PGDATABASE)
 
     conn = get_db_connection()
     try:

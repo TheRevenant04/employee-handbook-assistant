@@ -5,3 +5,4 @@ data/
 *.db
 *.db*
 .env
+grafana/provisioning/datasources/postgres.yml
