@@ -102,7 +102,7 @@ class RAG:
         self.cost_per_input_token = cost_per_input_token
         self.cost_per_output_token = cost_per_output_token
 
-    def search(self, query_text, num_results=5):
+    def vector_search(self, query_text, num_results=5):
         from db import get_db_connection
 
         query_vector = self.embedder.encode(query_text, normalize=True)
@@ -135,6 +135,115 @@ class RAG:
             ]
         finally:
             conn.close()
+
+    def keyword_search(self, query_text, num_results=5):
+        from db import get_db_connection
+
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT id, path, content,
+                               ts_rank_cd(content_tsv, plainto_tsquery('english', %s)) AS rank
+                        FROM {table}
+                        WHERE content_tsv @@ plainto_tsquery('english', %s)
+                        ORDER BY rank DESC
+                        LIMIT %s
+                        """
+                    ).format(
+                        table=sql.Identifier(TABLE_NAME),
+                    ),
+                    (query_text, query_text, num_results),
+                )
+                rows = cur.fetchall()
+            return [
+                {
+                    "id": row[0],
+                    "path": row[1],
+                    "content": row[2],
+                    "rank": float(row[3]),
+                }
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def hybrid_search(self, query_text, num_results=5, alpha=0.5):
+        from db import get_db_connection
+
+        query_vector = self.embedder.encode(query_text, normalize=True)
+        fetch_k = num_results * 3
+
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    sql.SQL(
+                        """
+                        WITH vector_results AS (
+                            SELECT id, path, content,
+                                   embedding <=> %s AS v_distance,
+                                   ROW_NUMBER() OVER (ORDER BY embedding <=> %s) AS v_rank
+                            FROM {table}
+                            ORDER BY embedding <=> %s
+                            LIMIT %s
+                        ),
+                        keyword_results AS (
+                            SELECT id, path, content,
+                                   ts_rank_cd(content_tsv, plainto_tsquery('english', %s)) AS k_score,
+                                   ROW_NUMBER() OVER (
+                                       ORDER BY ts_rank_cd(content_tsv, plainto_tsquery('english', %s)) DESC
+                                   ) AS k_rank
+                            FROM {table}
+                            WHERE content_tsv @@ plainto_tsquery('english', %s)
+                            LIMIT %s
+                        ),
+                        combined AS (
+                            SELECT
+                                COALESCE(v.id, k.id) AS id,
+                                COALESCE(v.path, k.path) AS path,
+                                COALESCE(v.content, k.content) AS content,
+                                COALESCE(1.0 / (1.0 + v.v_distance), 0) AS v_score,
+                                COALESCE(k.k_score, 0) AS k_score,
+                                COALESCE(v.v_rank, %s) AS v_rank,
+                                COALESCE(k.k_rank, %s) AS k_rank
+                            FROM vector_results v
+                            FULL OUTER JOIN keyword_results k ON v.id = k.id
+                        )
+                        SELECT id, path, content,
+                               %s * (1.0 / (1.0 + v_rank)) + (1.0 - %s) * (1.0 / (1.0 + k_rank)) AS score
+                        FROM combined
+                        ORDER BY score DESC
+                        LIMIT %s
+                        """
+                    ).format(
+                        table=sql.Identifier(TABLE_NAME),
+                    ),
+                    (
+                        query_vector, query_vector, query_vector, fetch_k,
+                        query_text, query_text, query_text, fetch_k,
+                        fetch_k, fetch_k,
+                        alpha, alpha,
+                        num_results,
+                    ),
+                )
+                rows = cur.fetchall()
+            return [
+                {
+                    "id": row[0],
+                    "path": row[1],
+                    "content": row[2],
+                    "distance": -float(row[3]),
+                }
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def search(self, query_text, num_results=5):
+        return self.hybrid_search(query_text, num_results)
 
     def build_context(self, search_results):
         lines = []

@@ -409,12 +409,15 @@ dependencies = [
     { name = "numpy" },
     { name = "onnxruntime" },
     { name = "openai" },
+    { name = "pandas" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "streamlit" },
     { name = "tokenizers" },
+    { name = "tqdm" },
 ]
 
 [package.dev-dependencies]
@@ -429,12 +432,15 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "onnxruntime", specifier = ">=1.27.0" },
     { name = "openai", specifier = ">=2.46.0" },
+    { name = "pandas", specifier = ">=2.3.0" },
     { name = "pgvector", specifier = ">=0.5.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
+    { name = "pydantic", specifier = ">=2.10.0" },
     { name = "python-dotenv", specifier = ">=0.9.9" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "streamlit", specifier = ">=1.59.2" },
     { name = "tokenizers", specifier = ">=0.23.1" },
+    { name = "tqdm", specifier = ">=4.67.0" },
 ]
 
 [package.metadata.requires-dev]

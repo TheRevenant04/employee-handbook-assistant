@@ -10,11 +10,14 @@ dependencies = [
     "numpy>=2.4.6",
     "onnxruntime>=1.27.0",
     "openai>=2.46.0",
+    "pandas>=2.3.0",
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.4",
+    "pydantic>=2.10.0",
     "requests>=2.34.2",
     "streamlit>=1.59.2",
     "tokenizers>=0.23.1",
+    "tqdm>=4.67.0",
 ]
 
 [dependency-groups]

@@ -33,7 +33,10 @@ def init_db(conn):
                     id BIGSERIAL PRIMARY KEY,
                     path TEXT UNIQUE NOT NULL,
                     content TEXT NOT NULL,
-                    embedding VECTOR({dim}) NOT NULL
+                    embedding VECTOR({dim}) NOT NULL,
+                    content_tsv TSVECTOR GENERATED ALWAYS AS (
+                        to_tsvector('english', content)
+                    ) STORED
                 );
                 """
             ).format(
@@ -51,6 +54,19 @@ def init_db(conn):
                 """
             ).format(
                 index_name=sql.Identifier(f"{TABLE_NAME}_embedding_hnsw_idx"),
+                table=sql.Identifier(TABLE_NAME),
+            )
+        )
+
+        cur.execute(
+            sql.SQL(
+                """
+                CREATE INDEX IF NOT EXISTS {index_name}
+                ON {table}
+                USING GIN (content_tsv);
+                """
+            ).format(
+                index_name=sql.Identifier(f"{TABLE_NAME}_content_tsv_idx"),
                 table=sql.Identifier(TABLE_NAME),
             )
         )

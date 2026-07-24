@@ -1,8 +1,13 @@
 import os
+import logging
+from dotenv import load_dotenv
 import psycopg
 from psycopg import sql
 from pgvector.psycopg import register_vector
 
+logger = logging.getLogger(__name__)
+
+load_dotenv()
 
 def connect_db():
     return psycopg.connect(
@@ -33,7 +38,10 @@ def init_db(
                         id BIGSERIAL PRIMARY KEY,
                         path TEXT UNIQUE NOT NULL,
                         content TEXT NOT NULL,
-                        embedding VECTOR({dim}) NOT NULL
+                        embedding VECTOR({dim}) NOT NULL,
+                        content_tsv TSVECTOR GENERATED ALWAYS AS (
+                            to_tsvector('english', content)
+                        ) STORED
                     );
                     """
                 ).format(
@@ -70,7 +78,53 @@ def init_db(
                     )
                 )
 
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS {index_name}
+                    ON {table}
+                    USING GIN (content_tsv);
+                    """
+                ).format(
+                    index_name=sql.Identifier(f"{table_name}_content_tsv_idx"),
+                    table=sql.Identifier(table_name),
+                )
+            )
+
         conn.commit()
+    finally:
+        conn.close()
+
+
+def migrate_add_tsvector(table_name="employee_handbook"):
+    conn = connect_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                sql.SQL(
+                    """
+                    ALTER TABLE {table}
+                    ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
+                    GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+                    """
+                ).format(table=sql.Identifier(table_name))
+            )
+
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS {index_name}
+                    ON {table}
+                    USING GIN (content_tsv);
+                    """
+                ).format(
+                    index_name=sql.Identifier(f"{table_name}_content_tsv_idx"),
+                    table=sql.Identifier(table_name),
+                )
+            )
+
+        conn.commit()
+        logger.info("Migration complete: added content_tsv column and GIN index")
     finally:
         conn.close()
 
