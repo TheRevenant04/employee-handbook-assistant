@@ -1,0 +1,9 @@
+.venv
+__pycache__
+.git
+.env
+models
+data
+*.ipynb
+*.db
+*.db*

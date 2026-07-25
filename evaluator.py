@@ -15,7 +15,7 @@ from db import get_db_connection
 logger = logging.getLogger(__name__)
 
 
-SAMPLE_RATE = float(os.getenv("EVAL_SAMPLE_RATE", "0.5"))
+SAMPLE_RATE = float(os.getenv("EVAL_SAMPLE_RATE", "0.1"))
 MAX_EVAL_RPM = int(os.getenv("MAX_EVAL_RPM", "10"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
 RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "2"))

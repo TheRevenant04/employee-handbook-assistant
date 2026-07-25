@@ -9,8 +9,24 @@ volumes:
     driver: local
   grafana_data:
     driver: local
+  app_data:
+    driver: local
 
 services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      PGHOST: app_postgres
+      PGPORT: "5432"
+    ports:
+      - "8501:8501"
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      app_postgres:
+        condition: service_healthy
+
   kestra_postgres:
     image: postgres:18
     volumes:
