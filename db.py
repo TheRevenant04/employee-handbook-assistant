@@ -133,3 +133,84 @@ def get_db_connection():
     conn = connect_db()
     register_vector(conn)
     return conn
+
+
+def init_llm_evaluation_schema():
+    conn = connect_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema}").format(
+                    schema=sql.Identifier("llm_evaluation")
+                )
+            )
+
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE TABLE {schema}.{table} (
+                        id              BIGSERIAL PRIMARY KEY,
+                        timestamp       TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        judge_model     TEXT NOT NULL,
+                        evaluated_model TEXT NOT NULL,
+                        num_questions   INT NOT NULL,
+                        config          JSONB
+                    );
+                    """
+                ).format(
+                    schema=sql.Identifier("llm_evaluation"),
+                    table=sql.Identifier("evaluation_runs"),
+                )
+            )
+
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE TABLE {schema}.{table} (
+                        id                         BIGSERIAL PRIMARY KEY,
+                        run_id                     BIGINT NOT NULL REFERENCES {schema}.{runs_table}(id),
+                        message_id                 BIGINT NOT NULL REFERENCES chat.messages(id),
+                        expected_document          TEXT,
+                        retrieved_context          TEXT,
+                        faithfulness_score         SMALLINT NOT NULL CHECK (faithfulness_score BETWEEN 1 AND 5),
+                        faithfulness_reasoning     TEXT,
+                        context_relevance_score    SMALLINT NOT NULL CHECK (context_relevance_score BETWEEN 1 AND 5),
+                        context_relevance_reasoning TEXT,
+                        completeness_score         SMALLINT NOT NULL CHECK (completeness_score BETWEEN 1 AND 5),
+                        completeness_reasoning     TEXT,
+                        judge_input_tokens         INT,
+                        judge_output_tokens        INT,
+                        judge_cost                 FLOAT DEFAULT 0
+                    );
+                    """
+                ).format(
+                    schema=sql.Identifier("llm_evaluation"),
+                    table=sql.Identifier("evaluation_results"),
+                    runs_table=sql.Identifier("evaluation_runs"),
+                )
+            )
+
+            cur.execute(
+                sql.SQL(
+                    "CREATE INDEX {idx} ON {schema}.{table} (run_id)"
+                ).format(
+                    idx=sql.Identifier("idx_eval_results_run"),
+                    schema=sql.Identifier("llm_evaluation"),
+                    table=sql.Identifier("evaluation_results"),
+                )
+            )
+
+            cur.execute(
+                sql.SQL(
+                    "CREATE INDEX {idx} ON {schema}.{table} (message_id)"
+                ).format(
+                    idx=sql.Identifier("idx_eval_results_msg"),
+                    schema=sql.Identifier("llm_evaluation"),
+                    table=sql.Identifier("evaluation_results"),
+                )
+            )
+
+        conn.commit()
+        logger.info("LLM evaluation schema initialized")
+    finally:
+        conn.close()

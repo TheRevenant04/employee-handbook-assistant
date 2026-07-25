@@ -8,6 +8,7 @@ from rag import RAG
 from embedder import Embedder
 from metrics import MetricsCollector
 from chat_store import ChatStore
+from evaluator import Evaluator
 
 
 def create_assistant():
@@ -15,6 +16,7 @@ def create_assistant():
 
     chat_store = ChatStore()
     metrics = MetricsCollector()
+    evaluator = Evaluator()
 
     return RAG(
         embedder=Embedder(),
@@ -22,6 +24,7 @@ def create_assistant():
         chat_store=chat_store,
         model=os.getenv("LLM_MODEL"),
         metrics=metrics,
+        evaluator=evaluator,
     )
 
 if __name__ == "__main__":

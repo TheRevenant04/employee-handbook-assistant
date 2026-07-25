@@ -91,6 +91,7 @@ class RAG:
         metrics=None,
         cost_per_input_token=COST_PER_INPUT_TOKEN,
         cost_per_output_token=COST_PER_OUTPUT_TOKEN,
+        evaluator=None,
     ):
         self.embedder = embedder
         self.llm_client = llm_client
@@ -101,6 +102,7 @@ class RAG:
         self.metrics = metrics or MetricsCollector()
         self.cost_per_input_token = cost_per_input_token
         self.cost_per_output_token = cost_per_output_token
+        self.evaluator = evaluator
 
     def vector_search(self, query_text, num_results=5):
         from db import get_db_connection
@@ -293,12 +295,15 @@ class RAG:
             output_tokens = None
             cost = 0.0
             answer = ""
+            retrieved_context = ""
             success = True
 
             try:
                 with self.metrics.timer() as search_timer:
                     search_results = self.search(query, num_results=num_results)
                 retrieval_latency_ms = search_timer["elapsed_ms"]
+
+                retrieved_context = self.build_context(search_results)
 
                 num_results_returned = len(search_results)
                 if search_results:
@@ -350,6 +355,14 @@ class RAG:
                 except Exception:
                     logger.error("Failed to persist chat message: %s", traceback.format_exc())
                     message_id = None
+
+        if self.evaluator and message_id and success:
+            self.evaluator.evaluate(
+                message_id=message_id,
+                question=query,
+                answer=answer,
+                retrieved_context=retrieved_context,
+            )
 
         return {
             "id": message_id,
