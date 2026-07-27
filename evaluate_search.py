@@ -9,6 +9,7 @@ from psycopg import sql
 from tqdm.auto import tqdm
 
 from embedder import Embedder
+from reranker import Reranker
 from db import get_db_connection
 
 
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
 MODEL_PATH = os.getenv("MODEL_PATH", "models/Xenova/all-MiniLM-L6-v2")
+RERANKER_MODEL_PATH = os.getenv("RERANKER_MODEL_PATH", "models/Xenova/ms-marco-MiniLM-L-6-v2")
 NUM_RESULTS = int(os.getenv("NUM_RESULTS", "5"))
 HYBRID_ALPHAS = [
     float(x.strip())
@@ -48,8 +50,9 @@ def load_ground_truth(path: str = GROUND_TRUTH_PATH) -> list[dict[str, Any]]:
 
 
 class SearchEvaluator:
-    def __init__(self, embedder: Embedder):
+    def __init__(self, embedder: Embedder, reranker: Reranker | None = None):
         self.embedder = embedder
+        self.reranker = reranker
         self.embedding_cache: dict[str, Any] = {}
 
     def get_query_embedding(self, query_text: str):
@@ -197,6 +200,23 @@ class SearchEvaluator:
         finally:
             conn.close()
 
+    def rerank_search(
+        self,
+        query_text: str,
+        num_results: int = NUM_RESULTS,
+        alpha: float = 0.5,
+    ) -> list[dict[str, Any]]:
+        if not self.reranker:
+            raise ValueError("Reranker not loaded")
+
+        candidates = self.hybrid_search(query_text, num_results=num_results * 3, alpha=alpha)
+        reranked = self.reranker.rerank(query_text, candidates, top_k=num_results)
+
+        for doc in reranked:
+            doc["method"] = f"rerank_hybrid_{alpha}"
+
+        return reranked
+
 
 def compute_relevance_row(
     item: dict[str, Any],
@@ -303,6 +323,7 @@ def main():
     logger.info("=== Search Evaluation ===")
     logger.info("Ground truth: %s", GROUND_TRUTH_PATH)
     logger.info("Model path: %s", MODEL_PATH)
+    logger.info("Reranker model path: %s", RERANKER_MODEL_PATH)
     logger.info("Table name: %s", TABLE_NAME)
     logger.info("Top-k: %d", NUM_RESULTS)
     logger.info("Hybrid alphas: %s", HYBRID_ALPHAS)
@@ -315,7 +336,18 @@ def main():
     logger.info("Loaded %d ground truth questions", len(ground_truth))
 
     embedder = Embedder(MODEL_PATH)
-    evaluator = SearchEvaluator(embedder)
+
+    reranker = None
+    if os.path.exists(RERANKER_MODEL_PATH):
+        try:
+            reranker = Reranker(RERANKER_MODEL_PATH)
+            logger.info("Loaded reranker from %s", RERANKER_MODEL_PATH)
+        except Exception:
+            logger.warning("Failed to load reranker from %s", RERANKER_MODEL_PATH)
+    else:
+        logger.info("Reranker model not found at %s, skipping reranker evaluation", RERANKER_MODEL_PATH)
+
+    evaluator = SearchEvaluator(embedder, reranker=reranker)
 
     summary_rows = []
     debug_rows = []
@@ -349,6 +381,19 @@ def main():
         )
         summary_rows.append(hybrid_metrics)
         debug_rows.extend(hybrid_debug)
+
+    if reranker:
+        for alpha in HYBRID_ALPHAS:
+            method_name = f"rerank_hybrid_{alpha}"
+            logger.info("Evaluating %s...", method_name)
+
+            rerank_metrics, rerank_debug = evaluate_method(
+                method_name,
+                ground_truth,
+                lambda query, a=alpha: evaluator.rerank_search(query, NUM_RESULTS, alpha=a),
+            )
+            summary_rows.append(rerank_metrics)
+            debug_rows.extend(rerank_debug)
 
     save_outputs(summary_rows, debug_rows)
 

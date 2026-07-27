@@ -1,22 +1,47 @@
 import logging
+import uuid
 
 import streamlit as st
-from assistant import create_assistant
 
+from assistant import create_assistant, get_llm_client, get_reranker
+from embedder import Embedder
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
-
 
 st.set_page_config(page_title="Employee Handbook Assistant", page_icon="📘")
 
 
 @st.cache_resource
-def load_assistant():
-    return create_assistant()
+def load_embedder():
+    return Embedder()
+
+
+@st.cache_resource
+def load_llm_client():
+    return get_llm_client()
+
+
+@st.cache_resource
+def load_reranker():
+    return get_reranker()
 
 
 def init_state():
+    if "assistant" not in st.session_state:
+        st.session_state.assistant = create_assistant(
+            embedder=load_embedder(),
+            llm_client=load_llm_client(),
+            reranker=load_reranker(),
+        )
+
     if "conversation_id" not in st.session_state:
         st.session_state.conversation_id = None
+
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -31,8 +56,8 @@ def load_conversation_history(assistant):
         {
             "question": msg["question"],
             "answer": msg["answer"],
-            "id": msg["id"],
-            "rating": msg["rating"],
+            "id": msg.get("id") or str(uuid.uuid4()),
+            "rating": msg.get("rating"),
         }
         for msg in stored_messages
     ]
@@ -41,20 +66,21 @@ def load_conversation_history(assistant):
 def ensure_conversation(assistant, first_question):
     if st.session_state.conversation_id is not None:
         return st.session_state.conversation_id
-    title = first_question[:80].strip()
+
+    title = first_question[:80].strip() or "New conversation"
     conversation_id = assistant.chat_store.create_conversation(title=title)
     st.session_state.conversation_id = conversation_id
     return conversation_id
 
 
 def rate_message(assistant, msg, rating):
-    if msg.get("rating") is None:
+    if msg.get("rating") is None and msg.get("id"):
         assistant.chat_store.rate_message(msg["id"], rating)
         msg["rating"] = rating
 
 
 def render_rating_controls(assistant, msg):
-    thumbs_col1, thumbs_col2, spacer = st.columns([1, 1, 8])
+    thumbs_col1, thumbs_col2, _ = st.columns([1, 1, 8])
     already_rated = msg.get("rating") is not None
 
     with thumbs_col1:
@@ -83,13 +109,12 @@ def render_messages(assistant):
             render_rating_controls(assistant, msg)
 
 
-assistant = load_assistant()
 init_state()
+assistant = st.session_state.assistant
 load_conversation_history(assistant)
 
 st.title("Employee Handbook Assistant")
 render_messages(assistant)
-
 
 if user_input := st.chat_input("Ask about the employee handbook"):
     with st.chat_message("user"):
@@ -106,7 +131,7 @@ if user_input := st.chat_input("Ask about the employee handbook"):
             st.stop()
 
     answer = result.get("answer", "No answer returned.")
-    message_id = result.get("id")
+    message_id = result.get("id") or str(uuid.uuid4())
 
     st.session_state.messages.append(
         {

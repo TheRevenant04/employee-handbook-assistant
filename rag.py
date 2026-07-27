@@ -4,6 +4,7 @@ import logging
 import traceback
 
 from metrics import MetricsCollector
+from db import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,7 @@ class RAG:
         cost_per_input_token=COST_PER_INPUT_TOKEN,
         cost_per_output_token=COST_PER_OUTPUT_TOKEN,
         evaluator=None,
+        reranker=None,
     ):
         self.embedder = embedder
         self.llm_client = llm_client
@@ -103,14 +105,12 @@ class RAG:
         self.cost_per_input_token = cost_per_input_token
         self.cost_per_output_token = cost_per_output_token
         self.evaluator = evaluator
+        self.reranker = reranker
 
     def vector_search(self, query_text, num_results=5):
-        from db import get_db_connection
-
         query_vector = self.embedder.encode(query_text, normalize=True)
 
-        conn = get_db_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL(
@@ -135,14 +135,9 @@ class RAG:
                 }
                 for row in rows
             ]
-        finally:
-            conn.close()
 
     def keyword_search(self, query_text, num_results=5):
-        from db import get_db_connection
-
-        conn = get_db_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL(
@@ -169,17 +164,12 @@ class RAG:
                 }
                 for row in rows
             ]
-        finally:
-            conn.close()
 
     def hybrid_search(self, query_text, num_results=5, alpha=0.5):
-        from db import get_db_connection
-
         query_vector = self.embedder.encode(query_text, normalize=True)
         fetch_k = num_results * 3
 
-        conn = get_db_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL(
@@ -241,11 +231,12 @@ class RAG:
                 }
                 for row in rows
             ]
-        finally:
-            conn.close()
 
     def search(self, query_text, num_results=5):
-        return self.hybrid_search(query_text, num_results)
+        results = self.hybrid_search(query_text, num_results)
+        if self.reranker and results:
+            results = self.reranker.rerank(query_text, results, top_k=num_results)
+        return results
 
     def build_context(self, search_results):
         lines = []

@@ -13,12 +13,17 @@ ONNX_CANDIDATES = [
     "model.onnx",
 ]
 
-def download(repo, dest="models"):
+def download(repo, dest="models", onnx_filename=None):
     dest = Path(dest) / repo
     dest.mkdir(parents=True, exist_ok=True)
 
     files = list_repo_files(repo_id=repo)
-    onnx_file = next((c for c in ONNX_CANDIDATES if c in files), None)
+
+    if onnx_filename:
+        onnx_file = onnx_filename if onnx_filename in files else None
+    else:
+        onnx_file = next((c for c in ONNX_CANDIDATES if c in files), None)
+
     if not onnx_file:
         raise FileNotFoundError(f"No ONNX model found in {repo}")
 
@@ -46,3 +51,4 @@ def download(repo, dest="models"):
 
 if __name__ == "__main__":
     download("Xenova/all-MiniLM-L6-v2")
+    download("Xenova/ms-marco-MiniLM-L-6-v2")

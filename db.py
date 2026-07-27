@@ -3,11 +3,43 @@ import logging
 from dotenv import load_dotenv
 import psycopg
 from psycopg import sql
+from psycopg_pool import ConnectionPool
 from pgvector.psycopg import register_vector
 
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+
+_pool = None
+
+
+def _configure_conn(conn):
+    register_vector(conn)
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        _pool = ConnectionPool(
+            conninfo=psycopg.conninfo.make_conninfo(
+                dbname=os.getenv("PGDATABASE", "employee_handbook"),
+                user=os.getenv("PGUSER", "user"),
+                password=os.getenv("PGPASSWORD", "password"),
+                host=os.getenv("PGHOST", "localhost"),
+                port=os.getenv("PGPORT", "5432"),
+            ),
+            min_size=1,
+            max_size=10,
+            configure=_configure_conn,
+        )
+        logger.info("Connection pool initialized (min=1, max=10)")
+    return _pool
+
+
+def get_connection():
+    pool = _get_pool()
+    return pool.connection()
+
 
 def connect_db():
     return psycopg.connect(
@@ -148,7 +180,7 @@ def init_llm_evaluation_schema():
             cur.execute(
                 sql.SQL(
                     """
-                    CREATE TABLE {schema}.{table} (
+                    CREATE TABLE IF NOT EXISTS {schema}.{table} (
                         id              BIGSERIAL PRIMARY KEY,
                         timestamp       TIMESTAMPTZ NOT NULL DEFAULT now(),
                         judge_model     TEXT NOT NULL,
@@ -166,7 +198,7 @@ def init_llm_evaluation_schema():
             cur.execute(
                 sql.SQL(
                     """
-                    CREATE TABLE {schema}.{table} (
+                    CREATE TABLE IF NOT EXISTS {schema}.{table} (
                         id                         BIGSERIAL PRIMARY KEY,
                         run_id                     BIGINT NOT NULL REFERENCES {schema}.{runs_table}(id),
                         message_id                 BIGINT NOT NULL REFERENCES chat.messages(id),
@@ -192,7 +224,7 @@ def init_llm_evaluation_schema():
 
             cur.execute(
                 sql.SQL(
-                    "CREATE INDEX {idx} ON {schema}.{table} (run_id)"
+                    "CREATE INDEX IF NOT EXISTS {idx} ON {schema}.{table} (run_id)"
                 ).format(
                     idx=sql.Identifier("idx_eval_results_run"),
                     schema=sql.Identifier("llm_evaluation"),
@@ -202,7 +234,7 @@ def init_llm_evaluation_schema():
 
             cur.execute(
                 sql.SQL(
-                    "CREATE INDEX {idx} ON {schema}.{table} (message_id)"
+                    "CREATE INDEX IF NOT EXISTS {idx} ON {schema}.{table} (message_id)"
                 ).format(
                     idx=sql.Identifier("idx_eval_results_msg"),
                     schema=sql.Identifier("llm_evaluation"),

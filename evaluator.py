@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from openai import OpenAI
 from psycopg import sql
 
-from db import get_db_connection
+from db import get_connection
 
 
 logger = logging.getLogger(__name__)
@@ -142,16 +142,13 @@ class Evaluator:
         t.start()
 
     def _already_evaluated(self, message_id: int) -> bool:
-        conn = get_db_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT 1 FROM llm_evaluation.evaluation_results WHERE message_id = %s LIMIT 1",
                     (message_id,),
                 )
                 return cur.fetchone() is not None
-        finally:
-            conn.close()
 
     def _run_evaluation(
         self,
@@ -225,8 +222,7 @@ class Evaluator:
                     return None
 
     def _get_or_create_run(self) -> int:
-        conn = get_db_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT id FROM llm_evaluation.evaluation_runs WHERE judge_model = %s ORDER BY id DESC LIMIT 1",
@@ -248,8 +244,6 @@ class Evaluator:
                 run_id = cur.fetchone()[0]
             conn.commit()
             return run_id
-        finally:
-            conn.close()
 
     def _store_result(
         self,
@@ -259,8 +253,7 @@ class Evaluator:
         judge_result: JudgeResult,
     ):
         scores = judge_result.scores
-        conn = get_db_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -289,12 +282,9 @@ class Evaluator:
                 )
             conn.commit()
             logger.info("Stored evaluation for message %d", message_id)
-        finally:
-            conn.close()
 
     def get_correlation(self) -> list[dict[str, Any]]:
-        conn = get_db_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
@@ -322,5 +312,3 @@ class Evaluator:
                 }
                 for r in rows
             ]
-        finally:
-            conn.close()
