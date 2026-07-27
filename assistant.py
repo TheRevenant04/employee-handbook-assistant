@@ -10,6 +10,7 @@ from metrics import MetricsCollector
 from chat_store import ChatStore
 from evaluator import Evaluator
 from reranker import Reranker
+from query_rewriter import QueryRewriter
 
 
 load_dotenv()
@@ -67,14 +68,25 @@ def get_llm_client():
     )
 
 
+def get_query_rewriter():
+    if not env_bool("QUERY_REWRITER_ENABLED", default=False):
+        return None
+
+    llm_client = get_llm_client()
+    model = os.getenv("QUERY_REWRITER_MODEL") or os.getenv("LLM_MODEL")
+    return QueryRewriter(llm_client=llm_client, model=model)
+
+
 def create_assistant(
     embedder=None,
     llm_client=None,
     reranker=None,
+    query_rewriter=None,
 ):
     embedder = embedder or Embedder()
     llm_client = llm_client or get_llm_client()
     reranker = reranker if reranker is not None else get_reranker()
+    query_rewriter = query_rewriter if query_rewriter is not None else get_query_rewriter()
 
     chat_store = ChatStore()
     metrics = MetricsCollector()
@@ -88,4 +100,5 @@ def create_assistant(
         metrics=metrics,
         evaluator=evaluator,
         reranker=reranker,
+        query_rewriter=query_rewriter,
     )

@@ -3,7 +3,7 @@ import uuid
 
 import streamlit as st
 
-from assistant import create_assistant, get_llm_client, get_reranker
+from assistant import create_assistant, get_llm_client, get_reranker, get_query_rewriter
 from embedder import Embedder
 
 
@@ -31,12 +31,18 @@ def load_reranker():
     return get_reranker()
 
 
+@st.cache_resource
+def load_query_rewriter():
+    return get_query_rewriter()
+
+
 def init_state():
     if "assistant" not in st.session_state:
         st.session_state.assistant = create_assistant(
             embedder=load_embedder(),
             llm_client=load_llm_client(),
             reranker=load_reranker(),
+            query_rewriter=load_query_rewriter(),
         )
 
     if "conversation_id" not in st.session_state:

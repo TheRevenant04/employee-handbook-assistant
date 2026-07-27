@@ -94,6 +94,7 @@ class RAG:
         cost_per_output_token=COST_PER_OUTPUT_TOKEN,
         evaluator=None,
         reranker=None,
+        query_rewriter=None,
     ):
         self.embedder = embedder
         self.llm_client = llm_client
@@ -106,6 +107,7 @@ class RAG:
         self.cost_per_output_token = cost_per_output_token
         self.evaluator = evaluator
         self.reranker = reranker
+        self.query_rewriter = query_rewriter
 
     def vector_search(self, query_text, num_results=5):
         query_vector = self.embedder.encode(query_text, normalize=True)
@@ -276,6 +278,10 @@ class RAG:
         }
 
     def rag(self, query, conversation_id, num_results=5):
+        rewritten_query = query
+        if self.query_rewriter:
+            rewritten_query = self.query_rewriter.rewrite(query)
+
         with self.metrics.timer() as total_timer:
             retrieval_latency_ms = None
             llm_latency_ms = None
@@ -291,7 +297,7 @@ class RAG:
 
             try:
                 with self.metrics.timer() as search_timer:
-                    search_results = self.search(query, num_results=num_results)
+                    search_results = self.search(rewritten_query, num_results=num_results)
                 retrieval_latency_ms = search_timer["elapsed_ms"]
 
                 retrieved_context = self.build_context(search_results)
