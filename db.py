@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from dotenv import load_dotenv
 import psycopg
@@ -12,6 +13,19 @@ load_dotenv()
 
 _pool = None
 
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
+RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "2"))
+
+
+def _conninfo():
+    return psycopg.conninfo.make_conninfo(
+        dbname=os.getenv("PGDATABASE", "employee_handbook"),
+        user=os.getenv("PGUSER", "user"),
+        password=os.getenv("PGPASSWORD", "password"),
+        host=os.getenv("PGHOST", "localhost"),
+        port=os.getenv("PGPORT", "5432"),
+    )
+
 
 def _configure_conn(conn):
     register_vector(conn)
@@ -20,19 +34,28 @@ def _configure_conn(conn):
 def _get_pool():
     global _pool
     if _pool is None:
-        _pool = ConnectionPool(
-            conninfo=psycopg.conninfo.make_conninfo(
-                dbname=os.getenv("PGDATABASE", "employee_handbook"),
-                user=os.getenv("PGUSER", "user"),
-                password=os.getenv("PGPASSWORD", "password"),
-                host=os.getenv("PGHOST", "localhost"),
-                port=os.getenv("PGPORT", "5432"),
-            ),
-            min_size=1,
-            max_size=10,
-            configure=_configure_conn,
-        )
-        logger.info("Connection pool initialized (min=1, max=10)")
+        for attempt in range(MAX_RETRIES):
+            try:
+                _pool = ConnectionPool(
+                    conninfo=_conninfo(),
+                    min_size=1,
+                    max_size=10,
+                    configure=_configure_conn,
+                    check=sql.SQL("SELECT 1"),
+                )
+                logger.info("Connection pool initialized (min=1, max=10)")
+                return _pool
+            except Exception as e:
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                if attempt < MAX_RETRIES - 1:
+                    logger.warning(
+                        "Pool init failed (attempt %d/%d): %s. Retrying in %.1fs...",
+                        attempt + 1, MAX_RETRIES, e, delay,
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error("Pool init failed after %d attempts: %s", MAX_RETRIES, e)
+                    raise
     return _pool
 
 
@@ -42,13 +65,26 @@ def get_connection():
 
 
 def connect_db():
-    return psycopg.connect(
-        dbname=os.getenv("PGDATABASE", "employee_handbook"),
-        user=os.getenv("PGUSER", "user"),
-        password=os.getenv("PGPASSWORD", "password"),
-        host=os.getenv("PGHOST", "localhost"),
-        port=int(os.getenv("PGPORT", "5432")),
-    )
+    for attempt in range(MAX_RETRIES):
+        try:
+            return psycopg.connect(
+                dbname=os.getenv("PGDATABASE", "employee_handbook"),
+                user=os.getenv("PGUSER", "user"),
+                password=os.getenv("PGPASSWORD", "password"),
+                host=os.getenv("PGHOST", "localhost"),
+                port=int(os.getenv("PGPORT", "5432")),
+            )
+        except Exception as e:
+            delay = RETRY_BASE_DELAY * (2 ** attempt)
+            if attempt < MAX_RETRIES - 1:
+                logger.warning(
+                    "DB connect failed (attempt %d/%d): %s. Retrying in %.1fs...",
+                    attempt + 1, MAX_RETRIES, e, delay,
+                )
+                time.sleep(delay)
+            else:
+                logger.error("DB connect failed after %d attempts: %s", MAX_RETRIES, e)
+                raise
 
 def init_db(
     table_name="employee_handbook",
