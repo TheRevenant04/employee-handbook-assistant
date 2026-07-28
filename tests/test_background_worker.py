@@ -106,3 +106,98 @@ class TestBackgroundWorker:
         worker._queue.join()
 
         assert results["key"] == "custom"
+
+    @patch("background_worker.time.sleep")
+    @patch("background_worker.connect_db")
+    def test_worker_survives_reconnect_failure(self, mock_connect_db, mock_sleep):
+        call_count = 0
+
+        def make_conn():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return MagicMock(id=1)
+            if call_count == 2:
+                raise Exception("DB down")
+            return MagicMock(id=3)
+
+        mock_connect_db.side_effect = make_conn
+
+        worker = BackgroundWorker()
+        worker._start_worker()
+        time.sleep(0.1)
+
+        def failing_task(conn):
+            raise Exception("task failed")
+
+        results = []
+
+        def success_task(conn, r):
+            r.append(conn.id)
+
+        worker._submit(failing_task)
+        worker._submit(success_task, results)
+        worker._queue.join()
+
+        assert results == [3]
+
+    @patch("background_worker.time.sleep")
+    @patch("background_worker.connect_db")
+    def test_worker_survives_initial_connect_failure(self, mock_connect_db, mock_sleep):
+        call_count = 0
+
+        def make_conn():
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                raise Exception("DB not ready")
+            return MagicMock(id=call_count)
+
+        mock_connect_db.side_effect = make_conn
+
+        worker = BackgroundWorker()
+        worker._start_worker()
+
+        results = []
+
+        def success_task(conn, r):
+            r.append(conn.id)
+
+        worker._submit(success_task, results)
+        worker._queue.join()
+
+        assert results == [3]
+
+    @patch("background_worker.time.sleep")
+    @patch("background_worker.connect_db")
+    def test_worker_drains_queue_during_reconnect_backoff(self, mock_connect_db, mock_sleep):
+        call_count = 0
+
+        def make_conn():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return MagicMock(id=1)
+            if call_count == 2:
+                raise Exception("DB down")
+            return MagicMock(id=3)
+
+        mock_connect_db.side_effect = make_conn
+
+        worker = BackgroundWorker()
+        worker._start_worker()
+        time.sleep(0.1)
+
+        def failing_task(conn):
+            raise Exception("fail")
+
+        results = []
+
+        def success_task(conn, r):
+            r.append("done")
+
+        worker._submit(failing_task)
+        worker._submit(success_task, results)
+        worker._queue.join()
+
+        assert results == ["done"]
