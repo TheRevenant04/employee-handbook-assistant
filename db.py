@@ -1,17 +1,15 @@
 import os
 import time
 import logging
+from contextlib import contextmanager
+
 from dotenv import load_dotenv
 import psycopg
 from psycopg import sql
-from psycopg_pool import ConnectionPool
 from pgvector.psycopg import register_vector
 
 logger = logging.getLogger(__name__)
-
 load_dotenv()
-
-_pool = None
 
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
 RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "2"))
@@ -27,53 +25,12 @@ def _conninfo():
     )
 
 
-def _configure_conn(conn):
-    register_vector(conn)
-
-
-def _get_pool():
-    global _pool
-    if _pool is None:
-        for attempt in range(MAX_RETRIES):
-            try:
-                _pool = ConnectionPool(
-                    conninfo=_conninfo(),
-                    min_size=1,
-                    max_size=10,
-                    configure=_configure_conn,
-                    check=sql.SQL("SELECT 1"),
-                )
-                logger.info("Connection pool initialized (min=1, max=10)")
-                return _pool
-            except Exception as e:
-                delay = RETRY_BASE_DELAY * (2 ** attempt)
-                if attempt < MAX_RETRIES - 1:
-                    logger.warning(
-                        "Pool init failed (attempt %d/%d): %s. Retrying in %.1fs...",
-                        attempt + 1, MAX_RETRIES, e, delay,
-                    )
-                    time.sleep(delay)
-                else:
-                    logger.error("Pool init failed after %d attempts: %s", MAX_RETRIES, e)
-                    raise
-    return _pool
-
-
-def get_connection():
-    pool = _get_pool()
-    return pool.connection()
-
-
-def connect_db():
+def connect_db(*, autocommit=False):
     for attempt in range(MAX_RETRIES):
         try:
-            return psycopg.connect(
-                dbname=os.getenv("PGDATABASE", "employee_handbook"),
-                user=os.getenv("PGUSER", "user"),
-                password=os.getenv("PGPASSWORD", "password"),
-                host=os.getenv("PGHOST", "localhost"),
-                port=int(os.getenv("PGPORT", "5432")),
-            )
+            conn = psycopg.connect(_conninfo(), autocommit=autocommit)
+            register_vector(conn)
+            return conn
         except Exception as e:
             delay = RETRY_BASE_DELAY * (2 ** attempt)
             if attempt < MAX_RETRIES - 1:
@@ -86,19 +43,24 @@ def connect_db():
                 logger.error("DB connect failed after %d attempts: %s", MAX_RETRIES, e)
                 raise
 
-def init_db(
-    table_name="employee_handbook",
-    dim=384,
-    index_type="hnsw",
-):
+
+@contextmanager
+def get_connection(*, autocommit=False):
+    with connect_db(autocommit=autocommit) as conn:
+        yield conn
+
+
+def init_db(table_name="employee_handbook", dim=384, index_type="hnsw"):
     if not isinstance(dim, int) or dim <= 0:
         raise ValueError("dim must be a positive integer")
 
-    conn = connect_db()
-    try:
+    index_type = index_type.lower()
+    if index_type not in {"hnsw", "ivfflat"}:
+        raise ValueError("index_type must be 'hnsw' or 'ivfflat'")
+
+    with get_connection(autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-
             cur.execute(
                 sql.SQL(
                     """
@@ -108,7 +70,7 @@ def init_db(
                         content TEXT NOT NULL,
                         embedding VECTOR({dim}) NOT NULL,
                         content_tsv TSVECTOR GENERATED ALWAYS AS (
-                            to_tsvector('english', content)
+                            to_tsvector('english', coalesce(content, ''))
                         ) STORED
                     );
                     """
@@ -118,7 +80,7 @@ def init_db(
                 )
             )
 
-            if index_type.lower() == "ivfflat":
+            if index_type == "ivfflat":
                 cur.execute(
                     sql.SQL(
                         """
@@ -159,21 +121,18 @@ def init_db(
                 )
             )
 
-        conn.commit()
-    finally:
-        conn.close()
+    logger.info("Database initialized for table %s", table_name)
 
 
 def migrate_add_tsvector(table_name="employee_handbook"):
-    conn = connect_db()
-    try:
+    with get_connection(autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL(
                     """
                     ALTER TABLE {table}
                     ADD COLUMN IF NOT EXISTS content_tsv TSVECTOR
-                    GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+                    GENERATED ALWAYS AS (to_tsvector('english', coalesce(content, ''))) STORED;
                     """
                 ).format(table=sql.Identifier(table_name))
             )
@@ -191,21 +150,11 @@ def migrate_add_tsvector(table_name="employee_handbook"):
                 )
             )
 
-        conn.commit()
-        logger.info("Migration complete: added content_tsv column and GIN index")
-    finally:
-        conn.close()
-
-
-def get_db_connection():
-    conn = connect_db()
-    register_vector(conn)
-    return conn
+    logger.info("Migration complete: added content_tsv column and GIN index")
 
 
 def init_llm_evaluation_schema():
-    conn = connect_db()
-    try:
+    with get_connection(autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema}").format(
@@ -217,12 +166,12 @@ def init_llm_evaluation_schema():
                 sql.SQL(
                     """
                     CREATE TABLE IF NOT EXISTS {schema}.{table} (
-                        id              BIGSERIAL PRIMARY KEY,
-                        timestamp       TIMESTAMPTZ NOT NULL DEFAULT now(),
-                        judge_model     TEXT NOT NULL,
+                        id BIGSERIAL PRIMARY KEY,
+                        timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        judge_model TEXT NOT NULL,
                         evaluated_model TEXT NOT NULL,
-                        num_questions   INT NOT NULL,
-                        config          JSONB
+                        num_questions INT NOT NULL CHECK (num_questions >= 0),
+                        config JSONB
                     );
                     """
                 ).format(
@@ -235,20 +184,20 @@ def init_llm_evaluation_schema():
                 sql.SQL(
                     """
                     CREATE TABLE IF NOT EXISTS {schema}.{table} (
-                        id                         BIGSERIAL PRIMARY KEY,
-                        run_id                     BIGINT NOT NULL REFERENCES {schema}.{runs_table}(id),
-                        message_id                 BIGINT NOT NULL REFERENCES chat.messages(id),
-                        expected_document          TEXT,
-                        retrieved_context          TEXT,
-                        faithfulness_score         SMALLINT NOT NULL CHECK (faithfulness_score BETWEEN 1 AND 5),
-                        faithfulness_reasoning     TEXT,
-                        context_relevance_score    SMALLINT NOT NULL CHECK (context_relevance_score BETWEEN 1 AND 5),
+                        id BIGSERIAL PRIMARY KEY,
+                        run_id BIGINT NOT NULL REFERENCES {schema}.{runs_table}(id) ON DELETE CASCADE,
+                        message_id BIGINT NOT NULL REFERENCES chat.messages(id),
+                        expected_document TEXT,
+                        retrieved_context TEXT,
+                        faithfulness_score SMALLINT NOT NULL CHECK (faithfulness_score BETWEEN 1 AND 5),
+                        faithfulness_reasoning TEXT,
+                        context_relevance_score SMALLINT NOT NULL CHECK (context_relevance_score BETWEEN 1 AND 5),
                         context_relevance_reasoning TEXT,
-                        completeness_score         SMALLINT NOT NULL CHECK (completeness_score BETWEEN 1 AND 5),
-                        completeness_reasoning     TEXT,
-                        judge_input_tokens         INT,
-                        judge_output_tokens        INT,
-                        judge_cost                 FLOAT DEFAULT 0
+                        completeness_score SMALLINT NOT NULL CHECK (completeness_score BETWEEN 1 AND 5),
+                        completeness_reasoning TEXT,
+                        judge_input_tokens INT,
+                        judge_output_tokens INT,
+                        judge_cost NUMERIC(12, 6) NOT NULL DEFAULT 0
                     );
                     """
                 ).format(
@@ -278,7 +227,4 @@ def init_llm_evaluation_schema():
                 )
             )
 
-        conn.commit()
-        logger.info("LLM evaluation schema initialized")
-    finally:
-        conn.close()
+    logger.info("LLM evaluation schema initialized")

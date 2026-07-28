@@ -3,17 +3,15 @@ import time
 import random
 import logging
 import threading
+from queue import Queue
 from typing import Any
 
 from pydantic import BaseModel
 from openai import OpenAI
-from psycopg import sql
 
-from db import get_connection
-
+from db import get_connection, init_llm_evaluation_schema
 
 logger = logging.getLogger(__name__)
-
 
 SAMPLE_RATE = float(os.getenv("EVAL_SAMPLE_RATE", "0.1"))
 MAX_EVAL_RPM = int(os.getenv("MAX_EVAL_RPM", "10"))
@@ -21,6 +19,7 @@ MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
 RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "2"))
 JUDGE_COST_PER_INPUT_TOKEN = float(os.getenv("JUDGE_COST_PER_INPUT_TOKEN", "0"))
 JUDGE_COST_PER_OUTPUT_TOKEN = float(os.getenv("JUDGE_COST_PER_OUTPUT_TOKEN", "0"))
+EVAL_WORKERS = int(os.getenv("EVAL_WORKERS", "1"))
 
 JUDGE_BASE_URL = os.getenv("JUDGE_BASE_URL")
 JUDGE_MODEL = os.getenv("JUDGE_MODEL")
@@ -81,7 +80,6 @@ class RateLimiter:
         self.lock = threading.Lock()
 
     def wait(self):
-        import time
         while True:
             with self.lock:
                 now = time.monotonic()
@@ -105,27 +103,46 @@ class Evaluator:
 
         self._client = OpenAI(base_url=JUDGE_BASE_URL, api_key=JUDGE_API_KEY)
         self._limiter = RateLimiter(MAX_EVAL_RPM)
+        self._queue = Queue()
+        self._workers = []
         self._init_schema()
+        self._start_workers()
         logger.info(
-            "Evaluator enabled: judge=%s, sample_rate=%.0f%%, rpm=%d",
-            JUDGE_MODEL, SAMPLE_RATE * 100, MAX_EVAL_RPM,
+            "Evaluator enabled: judge=%s, sample_rate=%.0f%%, rpm=%d, workers=%d",
+            JUDGE_MODEL,
+            SAMPLE_RATE * 100,
+            MAX_EVAL_RPM,
+            EVAL_WORKERS,
         )
 
     @staticmethod
     def _init_schema():
-        from db import init_llm_evaluation_schema
         try:
             init_llm_evaluation_schema()
         except Exception:
             logger.error("Failed to init evaluation schema", exc_info=True)
 
-    def evaluate(
-        self,
-        message_id: int,
-        question: str,
-        answer: str,
-        retrieved_context: str,
-    ):
+    def _start_workers(self):
+        for i in range(max(1, EVAL_WORKERS)):
+            t = threading.Thread(
+                target=self._worker_loop,
+                daemon=True,
+                name=f"eval-worker-{i + 1}",
+            )
+            t.start()
+            self._workers.append(t)
+
+    def _worker_loop(self):
+        while True:
+            payload = self._queue.get()
+            try:
+                self._run_evaluation(**payload)
+            except Exception:
+                logger.exception("Evaluation worker failed")
+            finally:
+                self._queue.task_done()
+
+    def evaluate(self, message_id: int, question: str, answer: str, retrieved_context: str):
         if not self._enabled:
             return
         if random.random() >= SAMPLE_RATE:
@@ -133,13 +150,14 @@ class Evaluator:
         if self._already_evaluated(message_id):
             return
 
-        t = threading.Thread(
-            target=self._run_evaluation,
-            args=(message_id, question, answer, retrieved_context),
-            daemon=True,
-            name=f"eval-{message_id}",
+        self._queue.put(
+            {
+                "message_id": message_id,
+                "question": question,
+                "answer": answer,
+                "retrieved_context": retrieved_context,
+            }
         )
-        t.start()
 
     def _already_evaluated(self, message_id: int) -> bool:
         with get_connection() as conn:
@@ -150,30 +168,15 @@ class Evaluator:
                 )
                 return cur.fetchone() is not None
 
-    def _run_evaluation(
-        self,
-        message_id: int,
-        question: str,
-        answer: str,
-        retrieved_context: str,
-    ):
-        try:
-            judge_result = self._judge(question, answer, retrieved_context)
-            if judge_result is None:
-                return
+    def _run_evaluation(self, message_id: int, question: str, answer: str, retrieved_context: str):
+        judge_result = self._judge(question, answer, retrieved_context)
+        if judge_result is None:
+            return
 
-            run_id = self._get_or_create_run()
-            self._store_result(run_id, message_id, retrieved_context, judge_result)
+        run_id = self._get_or_create_run()
+        self._store_result(run_id, message_id, retrieved_context, judge_result)
 
-        except Exception as e:
-            logger.error("Evaluation failed for message %d: %s", message_id, e, exc_info=True)
-
-    def _judge(
-        self,
-        question: str,
-        answer: str,
-        retrieved_context: str,
-    ) -> JudgeResult | None:
+    def _judge(self, question: str, answer: str, retrieved_context: str) -> JudgeResult | None:
         user_prompt = (
             f"QUESTION:\n{question}\n\n"
             f"ANSWER:\n{answer}\n\n"
@@ -200,17 +203,13 @@ class Evaluator:
                 usage = response.usage
                 input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
                 output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-                cost = (
-                    input_tokens * JUDGE_COST_PER_INPUT_TOKEN
-                    + output_tokens * JUDGE_COST_PER_OUTPUT_TOKEN
-                )
+                cost = input_tokens * JUDGE_COST_PER_INPUT_TOKEN + output_tokens * JUDGE_COST_PER_OUTPUT_TOKEN
                 return JudgeResult(
                     scores=result,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cost=cost,
                 )
-
             except Exception as e:
                 is_rate_limit = "429" in str(e) or "rate" in str(e).lower()
                 if is_rate_limit and attempt < MAX_RETRIES - 1:
@@ -239,19 +238,15 @@ class Evaluator:
                     VALUES (%s, %s, 0, %s)
                     RETURNING id
                     """,
-                    (JUDGE_MODEL, os.getenv("LLM_MODEL", "unknown"), '{"type": "production"}'),
+                    (
+                        JUDGE_MODEL,
+                        os.getenv("LLM_MODEL", "unknown"),
+                        '{"type": "production"}',
+                    ),
                 )
-                run_id = cur.fetchone()[0]
-            conn.commit()
-            return run_id
+                return cur.fetchone()[0]
 
-    def _store_result(
-        self,
-        run_id: int,
-        message_id: int,
-        retrieved_context: str,
-        judge_result: JudgeResult,
-    ):
+    def _store_result(self, run_id: int, message_id: int, retrieved_context: str, judge_result: JudgeResult):
         scores = judge_result.scores
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -280,7 +275,6 @@ class Evaluator:
                         judge_result.cost,
                     ),
                 )
-            conn.commit()
             logger.info("Stored evaluation for message %d", message_id)
 
     def get_correlation(self) -> list[dict[str, Any]]:
@@ -302,13 +296,13 @@ class Evaluator:
                     """
                 )
                 rows = cur.fetchall()
-            return [
-                {
-                    "rating": r[0],
-                    "avg_faithfulness": float(r[1]),
-                    "avg_context_relevance": float(r[2]),
-                    "avg_completeness": float(r[3]),
-                    "count": r[4],
-                }
-                for r in rows
-            ]
+                return [
+                    {
+                        "rating": r[0],
+                        "avg_faithfulness": float(r[1]),
+                        "avg_context_relevance": float(r[2]),
+                        "avg_completeness": float(r[3]),
+                        "count": r[4],
+                    }
+                    for r in rows
+                ]

@@ -5,13 +5,12 @@ from contextlib import contextmanager
 
 from psycopg import sql
 
-from db import connect_db
+from db import get_connection
 from background_worker import BackgroundWorker
 
 logger = logging.getLogger(__name__)
 
 SCHEMA = "rag_metrics"
-
 INGESTION_METRICS_TABLE = "ingestion_metrics"
 ERROR_LOG_TABLE = "error_log"
 
@@ -22,55 +21,38 @@ class MetricsCollector(BackgroundWorker):
         self._start_worker()
 
     def _init_schema(self):
-        conn = connect_db()
-        try:
+        with get_connection(autocommit=True) as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema}").format(
-                        schema=sql.Identifier(SCHEMA)
-                    )
-                )
-
+                cur.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {schema}").format(schema=sql.Identifier(SCHEMA)))
                 cur.execute(
                     sql.SQL(
                         """
                         CREATE TABLE IF NOT EXISTS {schema}.{table} (
-                            id                   BIGSERIAL PRIMARY KEY,
-                            timestamp            TIMESTAMPTZ NOT NULL DEFAULT now(),
-                            num_documents        INT NOT NULL,
+                            id BIGSERIAL PRIMARY KEY,
+                            timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            num_documents INT NOT NULL,
                             ingestion_latency_ms FLOAT,
-                            model                TEXT,
-                            success              BOOLEAN NOT NULL DEFAULT true
+                            model TEXT,
+                            success BOOLEAN NOT NULL DEFAULT true
                         );
                         """
-                    ).format(
-                        schema=sql.Identifier(SCHEMA),
-                        table=sql.Identifier(INGESTION_METRICS_TABLE),
-                    )
+                    ).format(schema=sql.Identifier(SCHEMA), table=sql.Identifier(INGESTION_METRICS_TABLE))
                 )
-
                 cur.execute(
                     sql.SQL(
                         """
                         CREATE TABLE IF NOT EXISTS {schema}.{table} (
-                            id            BIGSERIAL PRIMARY KEY,
-                            timestamp     TIMESTAMPTZ NOT NULL DEFAULT now(),
-                            source        TEXT NOT NULL,
-                            error_type    TEXT NOT NULL,
+                            id BIGSERIAL PRIMARY KEY,
+                            timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+                            source TEXT NOT NULL,
+                            error_type TEXT NOT NULL,
                             error_message TEXT NOT NULL,
-                            stack_trace   TEXT
+                            stack_trace TEXT
                         );
                         """
-                    ).format(
-                        schema=sql.Identifier(SCHEMA),
-                        table=sql.Identifier(ERROR_LOG_TABLE),
-                    )
+                    ).format(schema=sql.Identifier(SCHEMA), table=sql.Identifier(ERROR_LOG_TABLE))
                 )
-
-            conn.commit()
-            logger.info("Metrics schema '%s' initialized", SCHEMA)
-        finally:
-            conn.close()
+        logger.info("Metrics schema '%s' initialized", SCHEMA)
 
     @contextmanager
     def timer(self):
@@ -100,14 +82,12 @@ class MetricsCollector(BackgroundWorker):
                             (num_documents, ingestion_latency_ms, model, success)
                         VALUES (%s, %s, %s, %s)
                         """
-                    ).format(
-                        schema=sql.Identifier(SCHEMA),
-                        table=sql.Identifier(INGESTION_METRICS_TABLE),
-                    ),
+                    ).format(schema=sql.Identifier(SCHEMA), table=sql.Identifier(INGESTION_METRICS_TABLE)),
                     (num_documents, ingestion_latency_ms, model, success),
                 )
             conn.commit()
         except Exception:
+            conn.rollback()
             logger.error("Failed to record ingestion metric: %s", traceback.format_exc())
 
     def record_error(self, source, error_type, error_message, stack_trace=None):
@@ -129,12 +109,10 @@ class MetricsCollector(BackgroundWorker):
                             (source, error_type, error_message, stack_trace)
                         VALUES (%s, %s, %s, %s)
                         """
-                    ).format(
-                        schema=sql.Identifier(SCHEMA),
-                        table=sql.Identifier(ERROR_LOG_TABLE),
-                    ),
+                    ).format(schema=sql.Identifier(SCHEMA), table=sql.Identifier(ERROR_LOG_TABLE)),
                     (source, error_type, error_message, stack_trace),
                 )
             conn.commit()
         except Exception:
+            conn.rollback()
             logger.error("Failed to record error: %s", traceback.format_exc())
