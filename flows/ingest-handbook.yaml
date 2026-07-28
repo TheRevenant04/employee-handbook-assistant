@@ -104,37 +104,52 @@ tasks:
 
 
       def init_db(conn):
-          with conn.cursor() as cur:
-              cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-              cur.execute(
-                  sql.SQL(
-                      """
-                      CREATE TABLE IF NOT EXISTS {table} (
-                          id BIGSERIAL PRIMARY KEY,
-                          path TEXT UNIQUE NOT NULL,
-                          content TEXT NOT NULL,
-                          embedding VECTOR({dim}) NOT NULL
-                      );
-                      """
-                  ).format(
-                      table=sql.Identifier(TABLE_NAME),
-                      dim=sql.SQL(str(VECTOR_DIM)),
-                  )
-              )
-              cur.execute(
-                  sql.SQL(
-                      """
-                      CREATE INDEX IF NOT EXISTS {index_name}
-                      ON {table}
-                      USING hnsw (embedding vector_cosine_ops);
-                      """
-                  ).format(
-                      index_name=sql.Identifier(f"{TABLE_NAME}_embedding_hnsw_idx"),
-                      table=sql.Identifier(TABLE_NAME),
-                  )
-              )
-          conn.commit()
-          logger.info("Database initialized with table '%s'", TABLE_NAME)
+        with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id BIGSERIAL PRIMARY KEY,
+                        path TEXT UNIQUE NOT NULL,
+                        content TEXT NOT NULL,
+                        embedding VECTOR({dim}) NOT NULL,
+                        content_tsv TSVECTOR GENERATED ALWAYS AS (
+                            to_tsvector('english', coalesce(content, ''))
+                        ) STORED
+                    );
+                    """
+                ).format(
+                    table=sql.Identifier(TABLE_NAME),
+                    dim=sql.SQL(str(VECTOR_DIM)),
+                )
+            )
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS {index_name}
+                    ON {table}
+                    USING hnsw (embedding vector_cosine_ops);
+                    """
+                ).format(
+                    index_name=sql.Identifier(f"{TABLE_NAME}_embedding_hnsw_idx"),
+                    table=sql.Identifier(TABLE_NAME),
+                )
+            )
+            cur.execute(
+                sql.SQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS {index_name}
+                    ON {table}
+                    USING GIN (content_tsv);
+                    """
+                ).format(
+                    index_name=sql.Identifier(f"{TABLE_NAME}_content_tsv_idx"),
+                    table=sql.Identifier(TABLE_NAME),
+                )
+            )
+        conn.commit()
+        logger.info("Database initialized with table '%s'", TABLE_NAME)
 
 
       def fetch_markdown_files() -> list[dict[str, str]]:
@@ -230,14 +245,14 @@ pluginDefaults:
       taskRunner:
         type: io.kestra.plugin.scripts.runner.docker.Docker
       env:
-        GITHUB_OWNER: "{{ envs.GITHUB_OWNER }}"
-        GITHUB_REPO: "{{ envs.GITHUB_REPO }}"
-        GITHUB_BRANCH: "{{ envs.GITHUB_BRANCH }}"
-        PGHOST: "{{ envs.PGHOST }}"
-        PGPORT: "{{ envs.PGPORT }}"
-        PGDATABASE: "{{ envs.PGDATABASE }}"
-        PGUSER: "{{ envs.PGUSER }}"
-        PGPASSWORD: "{{ envs.PGPASSWORD }}"
-        TABLE_NAME: "{{ envs.TABLE_NAME }}"
-        VECTOR_DIM: "{{ envs.VECTOR_DIM }}"
-        MODEL_PATH: "{{ envs.MODEL_PATH }}"
+        GITHUB_OWNER: "{{ envs.github_owner }}"
+        GITHUB_REPO: "{{ envs.github_repo }}"
+        GITHUB_BRANCH: "{{ envs.github_branch }}"
+        PGHOST: "{{ envs.pghost }}"
+        PGPORT: "{{ envs.pgport }}"
+        PGDATABASE: "{{ envs.pgdatabase }}"
+        PGUSER: "{{ envs.pguser }}"
+        PGPASSWORD: "{{ envs.pgpassword }}"
+        TABLE_NAME: "{{ envs.table_name }}"
+        VECTOR_DIM: "{{ envs.vector_dim }}"
+        MODEL_PATH: "{{ envs.model_path }}"
