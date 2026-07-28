@@ -21,8 +21,27 @@ dependencies = [
     "tqdm>=4.67.0",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+env = [
+    "LLM_BASE_URL=http://localhost:11434/v1",
+    "LLM_API_KEY=test-key",
+    "LLM_MODEL=test-model",
+    "PGDATABASE=test_db",
+    "PGUSER=test_user",
+    "PGPASSWORD=test_password",
+    "PGHOST=localhost",
+    "PGPORT=5432",
+    "TABLE_NAME=employee_handbook",
+    "VECTOR_DIM=384",
+    "MODEL_PATH=models/Xenova/all-MiniLM-L6-v2",
+]
+
 [dependency-groups]
 dev = [
     "huggingface-hub>=1.24.0",
     "jupyter>=1.1.1",
+    "pytest>=8.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-dotenv>=0.5.0",
 ]
