@@ -266,7 +266,7 @@ class Evaluator:
 
     def _store_result(self, run_id: int, message_id: int, retrieved_context: str, judge_result: JudgeResult):
         scores = judge_result.scores
-        with get_connection() as conn:
+        with get_connection(autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
