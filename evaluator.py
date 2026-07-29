@@ -121,7 +121,7 @@ class Evaluator:
         try:
             init_llm_evaluation_schema()
         except Exception:
-            logger.error("Failed to init evaluation schema", exc_info=True)
+            logger.exception("Failed to init evaluation schema")
 
     def _start_workers(self):
         for i in range(max(1, EVAL_WORKERS)):
@@ -139,7 +139,7 @@ class Evaluator:
             try:
                 self._run_evaluation(**payload)
             except Exception:
-                logger.exception("Evaluation worker failed")
+                logger.exception("Evaluation worker failed for message_id=%s", payload.get("message_id"))
             finally:
                 self._queue.task_done()
 

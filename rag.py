@@ -328,6 +328,7 @@ class RAG:
 
             except Exception as e:
                 success = False
+                logger.exception("RAG query failed for conversation_id=%s", conversation_id)
                 self.metrics.record_error(
                     source="rag.query",
                     error_type=type(e).__name__,

@@ -1,5 +1,4 @@
 import logging
-import traceback
 
 from psycopg import sql
 
@@ -213,7 +212,7 @@ class ChatStore(BackgroundWorker):
             conn.commit()
         except Exception:
             conn.rollback()
-            logger.error("Failed to record message metrics: %s", traceback.format_exc())
+            logger.exception("Failed to record message metrics for message_id=%s", message_id)
 
     def get_messages(self, conversation_id):
         with get_connection() as conn:
@@ -284,4 +283,4 @@ class ChatStore(BackgroundWorker):
             conn.commit()
         except Exception:
             conn.rollback()
-            logger.error("Failed to rate message: %s", traceback.format_exc())
+            logger.exception("Failed to rate message_id=%s with rating=%s", message_id, rating)

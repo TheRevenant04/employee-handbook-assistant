@@ -40,14 +40,22 @@ def connect_db(*, autocommit=False):
                 )
                 time.sleep(delay)
             else:
-                logger.error("DB connect failed after %d attempts: %s", MAX_RETRIES, e)
+                logger.error(
+                    "DB connect failed after %d attempts: %s",
+                    MAX_RETRIES, e,
+                    exc_info=True,
+                )
                 raise
 
 
 @contextmanager
 def get_connection(*, autocommit=False):
-    with connect_db(autocommit=autocommit) as conn:
-        yield conn
+    conn = connect_db(autocommit=autocommit)
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def init_db(table_name="employee_handbook", dim=384, index_type="hnsw"):
