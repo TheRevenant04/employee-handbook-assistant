@@ -2,8 +2,8 @@ import logging
 
 from psycopg import sql
 
-from db import get_connection
-from background_worker import BackgroundWorker
+from app.vectorstore.pgvector_store import get_connection
+from app.services.background_worker import BackgroundWorker
 
 logger = logging.getLogger(__name__)
 

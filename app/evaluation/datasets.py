@@ -7,9 +7,9 @@ from openai import OpenAI
 from psycopg import sql
 from tqdm.auto import tqdm
 
-from db import get_connection
-from logging_config import configure_logging
-from utils import RateLimiter, is_transient_llm_error, retry_with_backoff
+from app.vectorstore.pgvector_store import get_connection
+from app.core.logging import configure_logging
+from app.core.dependencies import RateLimiter, is_transient_llm_error, retry_with_backoff
 
 configure_logging()
 logger = logging.getLogger(__name__)

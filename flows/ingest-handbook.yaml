@@ -10,9 +10,9 @@ tasks:
     beforeCommands:
       - pip install uv > /dev/null 2>&1
       - uv sync --frozen
-      - python download.py
+      - uv run python scripts/download_models.py
     commands:
-      - uv run python ingest_pipeline.py
+      - uv run python scripts/ingest_docs.py
     env:
       GITHUB_OWNER: "{{ envs.github_owner }}"
       GITHUB_REPO: "{{ envs.github_repo }}"

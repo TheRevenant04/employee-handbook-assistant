@@ -3,9 +3,9 @@ import uuid
 
 import streamlit as st
 
-from assistant import create_assistant, get_llm_client, get_reranker, get_query_rewriter
-from embedder import Embedder
-from logging_config import configure_logging
+from app.services.rag_service import create_assistant, get_llm_client, get_reranker, get_query_rewriter
+from app.embeddings.provider import Embedder
+from app.core.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -112,36 +112,41 @@ def render_messages(assistant):
             render_rating_controls(assistant, msg)
 
 
-init_state()
-assistant = st.session_state.assistant
-load_conversation_history(assistant)
+def main():
+    init_state()
+    assistant = st.session_state.assistant
+    load_conversation_history(assistant)
 
-st.title("Employee Handbook Assistant")
-render_messages(assistant)
+    st.title("Employee Handbook Assistant")
+    render_messages(assistant)
 
-if user_input := st.chat_input("Ask about the employee handbook"):
-    with st.chat_message("user"):
-        st.write(user_input)
+    if user_input := st.chat_input("Ask about the employee handbook"):
+        with st.chat_message("user"):
+            st.write(user_input)
 
-    conversation_id = ensure_conversation(assistant, user_input)
+        conversation_id = ensure_conversation(assistant, user_input)
 
-    with st.spinner("Thinking..."):
-        try:
-            result = assistant.rag(user_input, conversation_id=conversation_id)
-        except Exception as e:
-            logger.error("RAG query failed: %s", e, exc_info=True)
-            st.error("Something went wrong. Please try again.")
-            st.stop()
+        with st.spinner("Thinking..."):
+            try:
+                result = assistant.rag(user_input, conversation_id=conversation_id)
+            except Exception as e:
+                logger.error("RAG query failed: %s", e, exc_info=True)
+                st.error("Something went wrong. Please try again.")
+                st.stop()
 
-    answer = result.get("answer", "No answer returned.")
-    message_id = result.get("id") or str(uuid.uuid4())
+        answer = result.get("answer", "No answer returned.")
+        message_id = result.get("id") or str(uuid.uuid4())
 
-    st.session_state.messages.append(
-        {
-            "question": user_input,
-            "answer": answer,
-            "id": message_id,
-            "rating": None,
-        }
-    )
-    st.rerun()
+        st.session_state.messages.append(
+            {
+                "question": user_input,
+                "answer": answer,
+                "id": message_id,
+                "rating": None,
+            }
+        )
+        st.rerun()
+
+
+if __name__ == "__main__":
+    main()

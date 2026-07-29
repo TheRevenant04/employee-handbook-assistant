@@ -8,10 +8,10 @@ import pandas as pd
 from psycopg import sql
 from tqdm.auto import tqdm
 
-from embedder import Embedder
-from reranker import Reranker
-from db import get_connection
-from logging_config import configure_logging
+from app.embeddings.provider import Embedder
+from app.retrieval.reranker import Reranker
+from app.vectorstore.pgvector_store import get_connection
+from app.core.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)

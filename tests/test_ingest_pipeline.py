@@ -2,11 +2,11 @@ from unittest.mock import MagicMock, patch, mock_open
 
 import pytest
 
-import ingest_pipeline
+from app.ingestion import pipeline as ingest_pipeline
 
 
 class TestFetchMarkdownFiles:
-    @patch("ingest_pipeline.requests.Session")
+    @patch("app.ingestion.pipeline.requests.Session")
     def test_fetches_markdown_files(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
@@ -33,7 +33,7 @@ class TestFetchMarkdownFiles:
         assert files[0]["path"] == "policies/leave.md"
         assert files[1]["path"] == "README.md"
 
-    @patch("ingest_pipeline.requests.Session")
+    @patch("app.ingestion.pipeline.requests.Session")
     def test_returns_empty_when_no_markdown(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
@@ -46,7 +46,7 @@ class TestFetchMarkdownFiles:
         files = ingest_pipeline.fetch_markdown_files()
         assert files == []
 
-    @patch("ingest_pipeline.requests.Session")
+    @patch("app.ingestion.pipeline.requests.Session")
     def test_raises_on_api_error(self, mock_session_cls):
         import requests
 
@@ -59,7 +59,7 @@ class TestFetchMarkdownFiles:
 
 
 class TestEmbedAndStore:
-    @patch("embedder.Embedder")
+    @patch("app.embeddings.provider.Embedder")
     def test_embeds_and_stores_documents(self, mock_embedder_cls):
         import numpy as np
 
@@ -83,7 +83,7 @@ class TestEmbedAndStore:
         mock_cursor.executemany.assert_called_once()
         mock_conn.commit.assert_called_once()
 
-    @patch("embedder.Embedder")
+    @patch("app.embeddings.provider.Embedder")
     def test_handles_empty_documents(self, mock_embedder_cls):
         import numpy as np
 

@@ -11,9 +11,9 @@ from openai import OpenAI
 from psycopg import sql
 from tqdm.auto import tqdm
 
-from db import get_connection, init_llm_evaluation_schema
-from logging_config import configure_logging
-from utils import EvaluationScores, RateLimiter, is_transient_llm_error, load_ground_truth, retry_with_backoff
+from app.vectorstore.pgvector_store import get_connection, init_llm_evaluation_schema
+from app.core.logging import configure_logging
+from app.core.dependencies import EvaluationScores, RateLimiter, is_transient_llm_error, load_ground_truth, retry_with_backoff
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -285,7 +285,7 @@ def main():
 
     logger.info("Loaded %d ground truth questions", len(ground_truth))
 
-    from assistant import create_assistant
+    from app.services.rag_service import create_assistant
     assistant = create_assistant()
     assistant.evaluator = None
     judge_client = OpenAI(base_url=JUDGE_BASE_URL, api_key=JUDGE_API_KEY)

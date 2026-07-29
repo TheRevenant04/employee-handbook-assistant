@@ -3,7 +3,7 @@ import logging
 import threading
 from queue import Full, Queue
 
-from db import get_connection
+from app.vectorstore.pgvector_store import get_connection
 
 logger = logging.getLogger(__name__)
 

@@ -5,10 +5,10 @@ import pytest
 
 
 class TestMetricsCollector:
-    @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.get_connection")
+    @patch("app.evaluation.metrics.BackgroundWorker._start_worker")
+    @patch("app.evaluation.metrics.get_connection")
     def test_init_creates_schema(self, mock_get_connection, mock_start):
-        from metrics import MetricsCollector
+        from app.evaluation.metrics import MetricsCollector
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -19,10 +19,10 @@ class TestMetricsCollector:
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         assert cursor.execute.call_count >= 3
 
-    @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.get_connection")
+    @patch("app.evaluation.metrics.BackgroundWorker._start_worker")
+    @patch("app.evaluation.metrics.get_connection")
     def test_timer_context_manager(self, mock_get_connection, mock_start):
-        from metrics import MetricsCollector
+        from app.evaluation.metrics import MetricsCollector
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -35,10 +35,10 @@ class TestMetricsCollector:
         assert result["elapsed_ms"] > 0
         assert isinstance(result["elapsed_ms"], float)
 
-    @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.get_connection")
+    @patch("app.evaluation.metrics.BackgroundWorker._start_worker")
+    @patch("app.evaluation.metrics.get_connection")
     def test_record_ingestion_submits_to_worker(self, mock_get_connection, mock_start):
-        from metrics import MetricsCollector
+        from app.evaluation.metrics import MetricsCollector
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -55,10 +55,10 @@ class TestMetricsCollector:
 
         collector._submit.assert_called_once()
 
-    @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.get_connection")
+    @patch("app.evaluation.metrics.BackgroundWorker._start_worker")
+    @patch("app.evaluation.metrics.get_connection")
     def test_record_error_submits_to_worker(self, mock_get_connection, mock_start):
-        from metrics import MetricsCollector
+        from app.evaluation.metrics import MetricsCollector
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -75,10 +75,10 @@ class TestMetricsCollector:
 
         collector._submit.assert_called_once()
 
-    @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.get_connection")
+    @patch("app.evaluation.metrics.BackgroundWorker._start_worker")
+    @patch("app.evaluation.metrics.get_connection")
     def test_record_ingestion_writes_to_db(self, mock_get_connection, mock_start):
-        from metrics import MetricsCollector
+        from app.evaluation.metrics import MetricsCollector
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -98,10 +98,10 @@ class TestMetricsCollector:
         assert "INSERT" in sql_str
         mock_conn.commit.assert_called()
 
-    @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.get_connection")
+    @patch("app.evaluation.metrics.BackgroundWorker._start_worker")
+    @patch("app.evaluation.metrics.get_connection")
     def test_record_error_writes_to_db(self, mock_get_connection, mock_start):
-        from metrics import MetricsCollector
+        from app.evaluation.metrics import MetricsCollector
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn

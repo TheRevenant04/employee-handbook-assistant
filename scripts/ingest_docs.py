@@ -1,5 +1,5 @@
-from ingest_pipeline import fetch_markdown_files, init_db, embed_and_store
-from db import get_connection
+from app.ingestion.pipeline import fetch_markdown_files, init_db, embed_and_store
+from app.vectorstore.pgvector_store import get_connection
 
 
 if __name__ == "__main__":

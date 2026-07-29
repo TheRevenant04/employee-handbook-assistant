@@ -10,9 +10,9 @@ from typing import Any
 from openai import OpenAI
 from pydantic import BaseModel
 
-from db import get_connection, init_llm_evaluation_schema
-from sanitize import sanitize_for_llm
-from utils import EvaluationScores, RateLimiter, is_transient_llm_error, retry_with_backoff
+from app.vectorstore.pgvector_store import get_connection, init_llm_evaluation_schema
+from app.retrieval.filters import sanitize_for_llm
+from app.core.dependencies import EvaluationScores, RateLimiter, is_transient_llm_error, retry_with_backoff
 
 logger = logging.getLogger(__name__)
 

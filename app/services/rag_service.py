@@ -4,13 +4,13 @@ import logging
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from rag import RAG
-from embedder import Embedder
-from metrics import MetricsCollector
-from chat_store import ChatStore
-from evaluator import Evaluator
-from reranker import Reranker
-from query_rewriter import QueryRewriter
+from app.generation.answer_chain import RAG
+from app.embeddings.provider import Embedder
+from app.evaluation.metrics import MetricsCollector
+from app.services.chat_store import ChatStore
+from app.evaluation.judge import Evaluator
+from app.retrieval.reranker import Reranker
+from app.generation.query_rewriter import QueryRewriter
 
 
 load_dotenv()

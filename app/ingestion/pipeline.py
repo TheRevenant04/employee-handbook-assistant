@@ -5,8 +5,8 @@ import requests
 from pathlib import Path
 from psycopg import sql
 
-from db import get_connection
-from logging_config import configure_logging
+from app.vectorstore.pgvector_store import get_connection
+from app.core.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ def fetch_markdown_files() -> list[dict[str, str]]:
 
 
 def embed_and_store(conn, documents: list[dict[str, str]]):
-    from embedder import Embedder
+    from app.embeddings.provider import Embedder
 
     model_path = Path(MODEL_PATH)
     if not model_path.exists():

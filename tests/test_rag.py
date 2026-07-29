@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch, call
 import numpy as np
 import pytest
 
-from rag import RAG
+from app.generation.answer_chain import RAG
 
 
 def _make_db_mock(fetchall_return):
@@ -230,7 +230,7 @@ class TestRAGLLM:
 
 
 class TestRAGVectorSearch:
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_vector_search_returns_results(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics):
         conn_cm, mock_cursor = _make_db_mock([
             (1, "test.md", "content", 0.3),
@@ -253,7 +253,7 @@ class TestRAGVectorSearch:
 
 
 class TestRAGHybridSearch:
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_hybrid_search_returns_results(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics):
         conn_cm, mock_cursor = _make_db_mock([
             (1, "test.md", "content", 0.8),
@@ -312,7 +312,7 @@ class TestRAGSearch:
 
 
 class TestRAGRag:
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_rag_full_pipeline(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics):
         conn_cm, mock_cursor = _make_db_mock([(1, "path", "content", 0.3)])
         mock_get_conn.return_value = conn_cm
@@ -342,7 +342,7 @@ class TestRAGRag:
         assert result["output_tokens"] == 20
         mock_chat_store.add_message.assert_called_once()
 
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_rag_with_query_rewriter(
         self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics, mock_query_rewriter
     ):
@@ -371,7 +371,7 @@ class TestRAGRag:
 
         mock_query_rewriter.rewrite.assert_called_once_with("tell me about leave")
 
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_rag_records_metrics_on_success(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics):
         conn_cm, mock_cursor = _make_db_mock([(1, "path", "content", 0.3)])
         mock_get_conn.return_value = conn_cm
@@ -399,7 +399,7 @@ class TestRAGRag:
         call_kwargs = mock_chat_store.record_metrics.call_args[1]
         assert call_kwargs["success"] is True
 
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_rag_records_error_on_failure(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics):
         conn_cm, mock_cursor = _make_db_mock([])
         mock_cursor.fetchall.side_effect = Exception("DB error")
@@ -420,7 +420,7 @@ class TestRAGRag:
         call_kwargs = mock_chat_store.record_metrics.call_args[1]
         assert call_kwargs["success"] is False
 
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_rag_calls_evaluator(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics, mock_evaluator):
         conn_cm, mock_cursor = _make_db_mock([(1, "path", "content", 0.3)])
         mock_get_conn.return_value = conn_cm
@@ -447,7 +447,7 @@ class TestRAGRag:
 
         mock_evaluator.evaluate.assert_called_once()
 
-    @patch("rag.get_connection")
+    @patch("app.generation.answer_chain.get_connection")
     def test_rag_skips_evaluator_on_failure(
         self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics, mock_evaluator
     ):

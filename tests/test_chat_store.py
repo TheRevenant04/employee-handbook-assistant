@@ -5,19 +5,19 @@ import pytest
 
 
 class TestChatStoreInit:
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
     def test_init_calls_schema_and_starts_worker(self, mock_init_schema, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         store = ChatStore()
         mock_init_schema.assert_called_once()
         mock_start.assert_called_once()
 
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.get_connection")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.get_connection")
     def test_init_schema_creates_tables(self, mock_get_connection, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -30,11 +30,11 @@ class TestChatStoreInit:
 
 
 class TestChatStoreCreateConversation:
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.get_connection")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.get_connection")
     def test_create_conversation_returns_id(self, mock_get_connection, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -47,11 +47,11 @@ class TestChatStoreCreateConversation:
 
         assert result == 42
 
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.get_connection")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.get_connection")
     def test_create_conversation_with_default_title(self, mock_get_connection, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -67,11 +67,11 @@ class TestChatStoreCreateConversation:
 
 
 class TestChatStoreAddMessage:
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.get_connection")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.get_connection")
     def test_add_message_returns_id(self, mock_get_connection, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -85,11 +85,11 @@ class TestChatStoreAddMessage:
         assert result == 100
         assert cursor.execute.call_count == 2
 
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.get_connection")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.get_connection")
     def test_add_message_updates_conversation_timestamp(self, mock_get_connection, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -107,10 +107,10 @@ class TestChatStoreAddMessage:
 
 
 class TestChatStoreRecordMetrics:
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
     def test_record_metrics_inserts_row(self, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         store = ChatStore()
         store._submit = MagicMock()
@@ -134,11 +134,11 @@ class TestChatStoreRecordMetrics:
 
 
 class TestChatStoreGetMessages:
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.get_connection")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.get_connection")
     def test_get_messages_returns_formatted_list(self, mock_get_connection, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -158,11 +158,11 @@ class TestChatStoreGetMessages:
         assert msg["answer"] == "answer1"
         assert msg["rating"] == 1
 
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.get_connection")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.get_connection")
     def test_get_messages_empty(self, mock_get_connection, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -177,19 +177,19 @@ class TestChatStoreGetMessages:
 
 
 class TestChatStoreRateMessage:
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
     def test_rate_message_invalid_raises(self, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         store = ChatStore()
         with pytest.raises(ValueError, match="rating must be"):
             store.rate_message(1, 5)
 
-    @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.ChatStore._init_schema")
+    @patch("app.services.chat_store.BackgroundWorker._start_worker")
+    @patch("app.services.chat_store.ChatStore._init_schema")
     def test_rate_message_submits_to_worker(self, mock_init, mock_start):
-        from chat_store import ChatStore
+        from app.services.chat_store import ChatStore
 
         store = ChatStore()
         store._submit = MagicMock()
