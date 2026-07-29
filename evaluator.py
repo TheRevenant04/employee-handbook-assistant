@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from openai import OpenAI
 
 from db import get_connection, init_llm_evaluation_schema
+from sanitize import sanitize_for_llm
 
 logger = logging.getLogger(__name__)
 
@@ -177,10 +178,13 @@ class Evaluator:
         self._store_result(run_id, message_id, retrieved_context, judge_result)
 
     def _judge(self, question: str, answer: str, retrieved_context: str) -> JudgeResult | None:
+        safe_question = sanitize_for_llm(question)
+        safe_answer = sanitize_for_llm(answer)
+        safe_context = sanitize_for_llm(retrieved_context)
         user_prompt = (
-            f"QUESTION:\n{question}\n\n"
-            f"ANSWER:\n{answer}\n\n"
-            f"RETRIEVED CONTEXT:\n{retrieved_context}"
+            f"===== QUESTION =====\n{safe_question}\n===== END QUESTION =====\n\n"
+            f"===== ANSWER =====\n{safe_answer}\n===== END ANSWER =====\n\n"
+            f"===== RETRIEVED CONTEXT =====\n{safe_context}\n===== END RETRIEVED CONTEXT ====="
         )
         messages = [
             {"role": "developer", "content": JUDGE_INSTRUCTIONS},
