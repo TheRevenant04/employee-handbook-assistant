@@ -95,8 +95,13 @@ class RateLimiter:
                 time.sleep(sleep_time)
 
 
+_STOP_SENTINEL = object()
+
+
 class Evaluator:
     def __init__(self):
+        self._queue = Queue()
+        self._workers = []
         self._enabled = bool(JUDGE_BASE_URL and JUDGE_MODEL and JUDGE_API_KEY)
         if not self._enabled:
             logger.warning("Evaluator disabled: set JUDGE_BASE_URL, JUDGE_MODEL, JUDGE_API_KEY")
@@ -104,8 +109,6 @@ class Evaluator:
 
         self._client = OpenAI(base_url=JUDGE_BASE_URL, api_key=JUDGE_API_KEY)
         self._limiter = RateLimiter(MAX_EVAL_RPM)
-        self._queue = Queue()
-        self._workers = []
         self._init_schema()
         self._start_workers()
         logger.info(
@@ -133,9 +136,20 @@ class Evaluator:
             t.start()
             self._workers.append(t)
 
+    def stop(self, timeout=5):
+        for _ in self._workers:
+            self._queue.put(_STOP_SENTINEL)
+        deadline = time.monotonic() + timeout
+        for t in self._workers:
+            remaining = max(0, deadline - time.monotonic())
+            t.join(timeout=remaining)
+
     def _worker_loop(self):
         while True:
             payload = self._queue.get()
+            if payload is _STOP_SENTINEL:
+                self._queue.task_done()
+                return
             try:
                 self._run_evaluation(**payload)
             except Exception:
