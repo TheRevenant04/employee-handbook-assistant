@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 
 from embedder import Embedder
 from reranker import Reranker
-from db import get_db_connection
+from db import get_connection
 
 
 logging.basicConfig(
@@ -63,7 +63,7 @@ class SearchEvaluator:
     def vector_search(self, query_text: str, num_results: int = NUM_RESULTS) -> list[dict[str, Any]]:
         query_vector = self.get_query_embedding(query_text)
 
-        conn = get_db_connection()
+        conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(
@@ -94,7 +94,7 @@ class SearchEvaluator:
             conn.close()
 
     def keyword_search(self, query_text: str, num_results: int = NUM_RESULTS) -> list[dict[str, Any]]:
-        conn = get_db_connection()
+        conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(
@@ -135,7 +135,7 @@ class SearchEvaluator:
         query_vector = self.get_query_embedding(query_text)
         fetch_k = max(num_results * 3, 10)
 
-        conn = get_db_connection()
+        conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(

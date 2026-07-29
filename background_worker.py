@@ -15,14 +15,17 @@ class BackgroundWorker:
 
     def _worker(self):
         while True:
-            task = self._queue.get()
             try:
                 with get_connection() as conn:
-                    task(conn)
+                    task = self._queue.get()
+                    try:
+                        task(conn)
+                    except Exception:
+                        logger.exception("Background task failed")
+                    finally:
+                        self._queue.task_done()
             except Exception:
                 logger.exception("Background task failed")
-            finally:
-                self._queue.task_done()
 
     def _submit(self, fn, *args, **kwargs):
         self._queue.put(lambda conn: fn(conn, *args, **kwargs))

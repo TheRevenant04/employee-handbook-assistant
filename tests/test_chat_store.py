@@ -15,29 +15,30 @@ class TestChatStoreInit:
         mock_start.assert_called_once()
 
     @patch("chat_store.BackgroundWorker._start_worker")
-    @patch("chat_store.connect_db")
-    def test_init_schema_creates_tables(self, mock_connect_db, mock_start):
+    @patch("chat_store.get_connection")
+    def test_init_schema_creates_tables(self, mock_get_connection, mock_start):
         from chat_store import ChatStore
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
 
         store = ChatStore()
 
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         assert cursor.execute.call_count >= 5
-        mock_conn.commit.assert_called()
 
 
 class TestChatStoreCreateConversation:
     @patch("chat_store.BackgroundWorker._start_worker")
     @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.connect_db")
-    def test_create_conversation_returns_id(self, mock_connect_db, mock_init, mock_start):
+    @patch("chat_store.get_connection")
+    def test_create_conversation_returns_id(self, mock_get_connection, mock_init, mock_start):
         from chat_store import ChatStore
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = [42]
 
@@ -45,16 +46,16 @@ class TestChatStoreCreateConversation:
         result = store.create_conversation("Test Title")
 
         assert result == 42
-        mock_conn.commit.assert_called()
 
     @patch("chat_store.BackgroundWorker._start_worker")
     @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.connect_db")
-    def test_create_conversation_with_default_title(self, mock_connect_db, mock_init, mock_start):
+    @patch("chat_store.get_connection")
+    def test_create_conversation_with_default_title(self, mock_get_connection, mock_init, mock_start):
         from chat_store import ChatStore
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = [1]
 
@@ -68,12 +69,13 @@ class TestChatStoreCreateConversation:
 class TestChatStoreAddMessage:
     @patch("chat_store.BackgroundWorker._start_worker")
     @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.connect_db")
-    def test_add_message_returns_id(self, mock_connect_db, mock_init, mock_start):
+    @patch("chat_store.get_connection")
+    def test_add_message_returns_id(self, mock_get_connection, mock_init, mock_start):
         from chat_store import ChatStore
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = [100]
 
@@ -82,16 +84,16 @@ class TestChatStoreAddMessage:
 
         assert result == 100
         assert cursor.execute.call_count == 2
-        mock_conn.commit.assert_called()
 
     @patch("chat_store.BackgroundWorker._start_worker")
     @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.connect_db")
-    def test_add_message_updates_conversation_timestamp(self, mock_connect_db, mock_init, mock_start):
+    @patch("chat_store.get_connection")
+    def test_add_message_updates_conversation_timestamp(self, mock_get_connection, mock_init, mock_start):
         from chat_store import ChatStore
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = [1]
 
@@ -107,14 +109,12 @@ class TestChatStoreAddMessage:
 class TestChatStoreRecordMetrics:
     @patch("chat_store.BackgroundWorker._start_worker")
     @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.connect_db")
-    def test_record_metrics_inserts_row(self, mock_connect_db, mock_init, mock_start):
+    def test_record_metrics_inserts_row(self, mock_init, mock_start):
         from chat_store import ChatStore
 
-        mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
-
         store = ChatStore()
+        store._submit = MagicMock()
+
         store.record_metrics(
             message_id=1,
             total_latency_ms=250.0,
@@ -130,21 +130,19 @@ class TestChatStoreRecordMetrics:
             cost=0.005,
         )
 
-        cursor = mock_conn.cursor.return_value.__enter__.return_value
-        sql_str = str(cursor.execute.call_args[0][0])
-        assert "INSERT" in sql_str
-        mock_conn.commit.assert_called()
+        store._submit.assert_called_once()
 
 
 class TestChatStoreGetMessages:
     @patch("chat_store.BackgroundWorker._start_worker")
     @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.connect_db")
-    def test_get_messages_returns_formatted_list(self, mock_connect_db, mock_init, mock_start):
+    @patch("chat_store.get_connection")
+    def test_get_messages_returns_formatted_list(self, mock_get_connection, mock_init, mock_start):
         from chat_store import ChatStore
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         cursor.fetchall.return_value = [
             (1, 1, "2024-01-01", "question1", "answer1", 1, 100.0, 50.0, 50.0, 5, 0.3, 0.1, "model", True, 100, 50, 0.005)
@@ -162,12 +160,13 @@ class TestChatStoreGetMessages:
 
     @patch("chat_store.BackgroundWorker._start_worker")
     @patch("chat_store.ChatStore._init_schema")
-    @patch("chat_store.connect_db")
-    def test_get_messages_empty(self, mock_connect_db, mock_init, mock_start):
+    @patch("chat_store.get_connection")
+    def test_get_messages_empty(self, mock_get_connection, mock_init, mock_start):
         from chat_store import ChatStore
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         cursor.fetchall.return_value = []
 

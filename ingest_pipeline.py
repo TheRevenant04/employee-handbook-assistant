@@ -5,7 +5,7 @@ import requests
 from pathlib import Path
 from psycopg import sql
 
-from db import get_db_connection
+from db import get_connection
 
 logging.basicConfig(
     level=logging.INFO,
@@ -150,7 +150,7 @@ def main():
     logger.info("=== Employee Handbook Ingest Pipeline ===")
     logger.info("GitHub: %s/%s @ %s", GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH)
 
-    conn = get_db_connection()
+    conn = get_connection()
     try:
         init_db(conn)
 

@@ -25,22 +25,16 @@ class TestRateLimiter:
 
 
 class TestEvaluator:
-    @patch("db.init_llm_evaluation_schema")
-    @patch.dict(
-        "os.environ",
-        {
-            "JUDGE_BASE_URL": "http://localhost:11434/v1",
-            "JUDGE_MODEL": "test-judge",
-            "JUDGE_API_KEY": "test-key",
-        },
-    )
-    def test_init_enables_when_env_set(self, mock_init_schema):
+    def test_init_enables_when_env_set(self):
         from evaluator import Evaluator
 
-        ev = Evaluator()
-        assert ev._enabled is True
+        with patch("evaluator.JUDGE_BASE_URL", "http://localhost"):
+            with patch("evaluator.JUDGE_MODEL", "test-judge"):
+                with patch("evaluator.JUDGE_API_KEY", "test-key"):
+                    with patch("db.init_llm_evaluation_schema"):
+                        ev = Evaluator()
+                        assert ev._enabled is True
 
-    @patch.dict("os.environ", {}, clear=True)
     def test_init_disables_when_env_missing(self):
         import evaluator
         evaluator.JUDGE_BASE_URL = None
@@ -52,16 +46,7 @@ class TestEvaluator:
         ev = Evaluator()
         assert ev._enabled is False
 
-    @patch("db.init_llm_evaluation_schema")
-    @patch.dict(
-        "os.environ",
-        {
-            "JUDGE_BASE_URL": "http://localhost",
-            "JUDGE_MODEL": "test-judge",
-            "JUDGE_API_KEY": "test-key",
-        },
-    )
-    def test_evaluate_skips_when_disabled(self, mock_init_schema):
+    def test_evaluate_skips_when_disabled(self):
         import evaluator
         evaluator.JUDGE_BASE_URL = None
         evaluator.JUDGE_MODEL = None
@@ -72,76 +57,62 @@ class TestEvaluator:
         ev = Evaluator()
         ev._enabled = False
 
-        ev.evaluate(
-            message_id=1,
-            question="q",
-            answer="a",
-            retrieved_context="ctx",
-        )
-
-    @patch("db.init_llm_evaluation_schema")
-    @patch.dict(
-        "os.environ",
-        {
-            "JUDGE_BASE_URL": "http://localhost",
-            "JUDGE_MODEL": "test-judge",
-            "JUDGE_API_KEY": "test-key",
-            "EVAL_SAMPLE_RATE": "0",
-        },
-    )
-    def test_evaluate_skips_when_sample_rate_zero(self, mock_init_schema):
-        from evaluator import Evaluator
-
-        ev = Evaluator()
-        ev._enabled = True
-
-        with patch.object(ev, "_run_evaluation") as mock_run:
+        with patch("db.init_llm_evaluation_schema"):
             ev.evaluate(
                 message_id=1,
                 question="q",
                 answer="a",
                 retrieved_context="ctx",
             )
-            mock_run.assert_not_called()
 
-    @patch("db.init_llm_evaluation_schema")
-    @patch.dict(
-        "os.environ",
-        {
-            "JUDGE_BASE_URL": "http://localhost",
-            "JUDGE_MODEL": "test-judge",
-            "JUDGE_API_KEY": "test-key",
-        },
-    )
-    def test_evaluate_skips_already_evaluated(self, mock_init_schema):
-        from evaluator import Evaluator
+    def test_evaluate_skips_when_sample_rate_zero(self):
+        with patch("evaluator.SAMPLE_RATE", 0.0):
+            with patch("evaluator.JUDGE_BASE_URL", "http://localhost"):
+                with patch("evaluator.JUDGE_MODEL", "test-judge"):
+                    with patch("evaluator.JUDGE_API_KEY", "test-key"):
+                        with patch("db.init_llm_evaluation_schema"):
+                            from evaluator import Evaluator
 
-        ev = Evaluator()
-        ev._enabled = True
+                            ev = Evaluator()
+                            ev._enabled = True
 
-        with patch.object(ev, "_already_evaluated", return_value=True) as mock_check:
-            with patch.object(ev, "_run_evaluation") as mock_run:
-                ev.evaluate(
-                    message_id=1,
-                    question="q",
-                    answer="a",
-                    retrieved_context="ctx",
-                )
-                mock_run.assert_not_called()
+                            with patch.object(ev, "_run_evaluation") as mock_run:
+                                ev.evaluate(
+                                    message_id=1,
+                                    question="q",
+                                    answer="a",
+                                    retrieved_context="ctx",
+                                )
+                                mock_run.assert_not_called()
 
-    @patch("db.init_llm_evaluation_schema")
-    @patch.dict(
-        "os.environ",
-        {
-            "JUDGE_BASE_URL": "http://localhost",
-            "JUDGE_MODEL": "test-judge",
-            "JUDGE_API_KEY": "test-key",
-        },
-    )
-    def test_judge_returns_scores(self, mock_init_schema):
-        from evaluator import Evaluator, EvaluationScores
+    def test_evaluate_skips_already_evaluated(self):
+        with patch("evaluator.JUDGE_BASE_URL", "http://localhost"):
+            with patch("evaluator.JUDGE_MODEL", "test-judge"):
+                with patch("evaluator.JUDGE_API_KEY", "test-key"):
+                    with patch("db.init_llm_evaluation_schema"):
+                        from evaluator import Evaluator
 
-        ev = Evaluator()
+                        ev = Evaluator()
+                        ev._enabled = True
+
+                        with patch.object(ev, "_already_evaluated", return_value=True) as mock_check:
+                            with patch.object(ev, "_run_evaluation") as mock_run:
+                                ev.evaluate(
+                                    message_id=1,
+                                    question="q",
+                                    answer="a",
+                                    retrieved_context="ctx",
+                                )
+                                mock_run.assert_not_called()
+
+    def test_judge_returns_scores(self):
+        with patch("evaluator.JUDGE_BASE_URL", "http://localhost"):
+            with patch("evaluator.JUDGE_MODEL", "test-judge"):
+                with patch("evaluator.JUDGE_API_KEY", "test-key"):
+                    with patch("db.init_llm_evaluation_schema"):
+                        from evaluator import Evaluator, EvaluationScores
+
+                        ev = Evaluator()
 
         parsed = EvaluationScores(
             faithfulness_score=4,
@@ -174,19 +145,14 @@ class TestEvaluator:
         assert result.input_tokens == 100
         assert result.output_tokens == 50
 
-    @patch("db.init_llm_evaluation_schema")
-    @patch.dict(
-        "os.environ",
-        {
-            "JUDGE_BASE_URL": "http://localhost",
-            "JUDGE_MODEL": "test-judge",
-            "JUDGE_API_KEY": "test-key",
-        },
-    )
-    def test_judge_returns_none_on_failure(self, mock_init_schema):
-        from evaluator import Evaluator
+    def test_judge_returns_none_on_failure(self):
+        with patch("evaluator.JUDGE_BASE_URL", "http://localhost"):
+            with patch("evaluator.JUDGE_MODEL", "test-judge"):
+                with patch("evaluator.JUDGE_API_KEY", "test-key"):
+                    with patch("db.init_llm_evaluation_schema"):
+                        from evaluator import Evaluator
 
-        ev = Evaluator()
+                        ev = Evaluator()
         ev._client = MagicMock()
         ev._client.beta.chat.completions.parse.side_effect = Exception("API error")
         ev._limiter = MagicMock()
@@ -194,11 +160,7 @@ class TestEvaluator:
         result = ev._judge("question", "answer", "context")
         assert result is None
 
-    @patch("db.init_llm_evaluation_schema")
-    @patch("evaluator.JUDGE_COST_PER_OUTPUT_TOKEN", 0.001)
-    @patch("evaluator.JUDGE_COST_PER_INPUT_TOKEN", 0.001)
-    @patch("evaluator.JUDGE_MODEL", "test-judge")
-    def test_store_result_inserts(self, mock_init_schema):
+    def test_store_result_inserts(self):
         from evaluator import Evaluator, JudgeResult, EvaluationScores
 
         ev = Evaluator.__new__(Evaluator)
@@ -234,4 +196,3 @@ class TestEvaluator:
             ev._store_result(run_id=1, message_id=1, retrieved_context="ctx", judge_result=judge_result)
 
         mock_cursor.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()

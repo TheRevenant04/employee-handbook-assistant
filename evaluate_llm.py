@@ -13,7 +13,7 @@ from openai import OpenAI
 from psycopg import sql
 from tqdm.auto import tqdm
 
-from db import get_db_connection, init_llm_evaluation_schema
+from db import get_connection, init_llm_evaluation_schema
 
 
 logging.basicConfig(
@@ -120,7 +120,7 @@ def load_ground_truth(path: str = GROUND_TRUTH_PATH) -> list[dict[str, Any]]:
 
 
 def get_document_content(doc_path: str) -> str | None:
-    conn = get_db_connection()
+    conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -191,7 +191,7 @@ def store_run(
     num_questions: int,
     config: dict[str, Any],
 ) -> int:
-    conn = get_db_connection()
+    conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -219,7 +219,7 @@ def store_result(
     retrieved_context: str | None,
     scores: EvaluationScores,
 ):
-    conn = get_db_connection()
+    conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(

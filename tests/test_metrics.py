@@ -6,25 +6,27 @@ import pytest
 
 class TestMetricsCollector:
     @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.connect_db")
-    def test_init_creates_schema(self, mock_connect_db, mock_start):
+    @patch("metrics.get_connection")
+    def test_init_creates_schema(self, mock_get_connection, mock_start):
         from metrics import MetricsCollector
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
 
         collector = MetricsCollector()
 
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         assert cursor.execute.call_count >= 3
-        mock_conn.commit.assert_called()
 
     @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.connect_db")
-    def test_timer_context_manager(self, mock_connect_db, mock_start):
+    @patch("metrics.get_connection")
+    def test_timer_context_manager(self, mock_get_connection, mock_start):
         from metrics import MetricsCollector
 
-        mock_connect_db.return_value = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         collector = MetricsCollector()
 
         with collector.timer() as result:
@@ -34,11 +36,13 @@ class TestMetricsCollector:
         assert isinstance(result["elapsed_ms"], float)
 
     @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.connect_db")
-    def test_record_ingestion_submits_to_worker(self, mock_connect_db, mock_start):
+    @patch("metrics.get_connection")
+    def test_record_ingestion_submits_to_worker(self, mock_get_connection, mock_start):
         from metrics import MetricsCollector
 
-        mock_connect_db.return_value = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         collector = MetricsCollector()
         collector._submit = MagicMock()
 
@@ -52,11 +56,13 @@ class TestMetricsCollector:
         collector._submit.assert_called_once()
 
     @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.connect_db")
-    def test_record_error_submits_to_worker(self, mock_connect_db, mock_start):
+    @patch("metrics.get_connection")
+    def test_record_error_submits_to_worker(self, mock_get_connection, mock_start):
         from metrics import MetricsCollector
 
-        mock_connect_db.return_value = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         collector = MetricsCollector()
         collector._submit = MagicMock()
 
@@ -70,12 +76,13 @@ class TestMetricsCollector:
         collector._submit.assert_called_once()
 
     @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.connect_db")
-    def test_record_ingestion_writes_to_db(self, mock_connect_db, mock_start):
+    @patch("metrics.get_connection")
+    def test_record_ingestion_writes_to_db(self, mock_get_connection, mock_start):
         from metrics import MetricsCollector
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         collector = MetricsCollector()
 
         collector._record_ingestion(
@@ -92,12 +99,13 @@ class TestMetricsCollector:
         mock_conn.commit.assert_called()
 
     @patch("metrics.BackgroundWorker._start_worker")
-    @patch("metrics.connect_db")
-    def test_record_error_writes_to_db(self, mock_connect_db, mock_start):
+    @patch("metrics.get_connection")
+    def test_record_error_writes_to_db(self, mock_get_connection, mock_start):
         from metrics import MetricsCollector
 
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
         collector = MetricsCollector()
 
         collector._record_error(

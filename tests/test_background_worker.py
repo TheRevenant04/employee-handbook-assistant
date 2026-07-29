@@ -17,10 +17,11 @@ class TestBackgroundWorker:
         assert worker._worker_thread.is_alive()
         assert worker._worker_thread.daemon is True
 
-    @patch("background_worker.connect_db")
-    def test_submit_executes_task(self, mock_connect_db):
+    @patch("background_worker.get_connection")
+    def test_submit_executes_task(self, mock_get_connection):
         mock_conn = MagicMock()
-        mock_connect_db.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
 
         worker = BackgroundWorker()
         worker._start_worker()
@@ -36,8 +37,8 @@ class TestBackgroundWorker:
         assert result.get("executed") is True
         assert result.get("conn") is mock_conn
 
-    @patch("background_worker.connect_db")
-    def test_worker_reconnects_on_task_failure(self, mock_connect_db):
+    @patch("background_worker.get_connection")
+    def test_worker_reconnects_on_task_failure(self, mock_get_connection):
         call_count = 0
         conns = []
 
@@ -46,10 +47,11 @@ class TestBackgroundWorker:
             call_count += 1
             conn = MagicMock()
             conn.id = call_count
+            conn.__enter__.return_value = conn
             conns.append(conn)
             return conn
 
-        mock_connect_db.side_effect = make_conn
+        mock_get_connection.side_effect = make_conn
 
         worker = BackgroundWorker()
         worker._start_worker()
@@ -69,9 +71,11 @@ class TestBackgroundWorker:
         assert len(conns) >= 2
         assert len(results) == 1
 
-    @patch("background_worker.connect_db")
-    def test_worker_handles_task_exception_gracefully(self, mock_connect_db):
-        mock_connect_db.return_value = MagicMock()
+    @patch("background_worker.get_connection")
+    def test_worker_handles_task_exception_gracefully(self, mock_get_connection):
+        mock_conn = MagicMock()
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
 
         worker = BackgroundWorker()
         worker._start_worker()
@@ -91,9 +95,11 @@ class TestBackgroundWorker:
 
         assert results == ["ok"]
 
-    @patch("background_worker.connect_db")
-    def test_submit_passes_kwargs(self, mock_connect_db):
-        mock_connect_db.return_value = MagicMock()
+    @patch("background_worker.get_connection")
+    def test_submit_passes_kwargs(self, mock_get_connection):
+        mock_conn = MagicMock()
+        mock_conn.__enter__.return_value = mock_conn
+        mock_get_connection.return_value = mock_conn
 
         worker = BackgroundWorker()
         worker._start_worker()
@@ -107,21 +113,24 @@ class TestBackgroundWorker:
 
         assert results["key"] == "custom"
 
-    @patch("background_worker.time.sleep")
-    @patch("background_worker.connect_db")
-    def test_worker_survives_reconnect_failure(self, mock_connect_db, mock_sleep):
+    @patch("background_worker.get_connection")
+    def test_worker_survives_reconnect_failure(self, mock_get_connection):
         call_count = 0
 
         def make_conn():
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return MagicMock(id=1)
+                conn = MagicMock(id=1)
+                conn.__enter__.return_value = conn
+                return conn
             if call_count == 2:
                 raise Exception("DB down")
-            return MagicMock(id=3)
+            conn = MagicMock(id=3)
+            conn.__enter__.return_value = conn
+            return conn
 
-        mock_connect_db.side_effect = make_conn
+        mock_get_connection.side_effect = make_conn
 
         worker = BackgroundWorker()
         worker._start_worker()
@@ -141,9 +150,8 @@ class TestBackgroundWorker:
 
         assert results == [3]
 
-    @patch("background_worker.time.sleep")
-    @patch("background_worker.connect_db")
-    def test_worker_survives_initial_connect_failure(self, mock_connect_db, mock_sleep):
+    @patch("background_worker.get_connection")
+    def test_worker_survives_initial_connect_failure(self, mock_get_connection):
         call_count = 0
 
         def make_conn():
@@ -151,9 +159,11 @@ class TestBackgroundWorker:
             call_count += 1
             if call_count <= 2:
                 raise Exception("DB not ready")
-            return MagicMock(id=call_count)
+            conn = MagicMock(id=call_count)
+            conn.__enter__.return_value = conn
+            return conn
 
-        mock_connect_db.side_effect = make_conn
+        mock_get_connection.side_effect = make_conn
 
         worker = BackgroundWorker()
         worker._start_worker()
@@ -168,21 +178,24 @@ class TestBackgroundWorker:
 
         assert results == [3]
 
-    @patch("background_worker.time.sleep")
-    @patch("background_worker.connect_db")
-    def test_worker_drains_queue_during_reconnect_backoff(self, mock_connect_db, mock_sleep):
+    @patch("background_worker.get_connection")
+    def test_worker_drains_queue_during_reconnect_backoff(self, mock_get_connection):
         call_count = 0
 
         def make_conn():
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return MagicMock(id=1)
+                conn = MagicMock(id=1)
+                conn.__enter__.return_value = conn
+                return conn
             if call_count == 2:
                 raise Exception("DB down")
-            return MagicMock(id=3)
+            conn = MagicMock(id=3)
+            conn.__enter__.return_value = conn
+            return conn
 
-        mock_connect_db.side_effect = make_conn
+        mock_get_connection.side_effect = make_conn
 
         worker = BackgroundWorker()
         worker._start_worker()

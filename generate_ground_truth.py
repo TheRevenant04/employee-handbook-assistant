@@ -9,7 +9,7 @@ from openai import OpenAI
 from psycopg import sql
 from tqdm.auto import tqdm
 
-from db import get_db_connection
+from db import get_connection
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,7 +60,7 @@ class RateLimiter:
 
 
 def load_documents():
-    conn = get_db_connection()
+    conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
