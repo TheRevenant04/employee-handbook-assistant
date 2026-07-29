@@ -11,12 +11,9 @@ from tqdm.auto import tqdm
 from embedder import Embedder
 from reranker import Reranker
 from db import get_connection
+from logging_config import configure_logging
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 

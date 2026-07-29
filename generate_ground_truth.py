@@ -10,11 +10,9 @@ from psycopg import sql
 from tqdm.auto import tqdm
 
 from db import get_connection
+from logging_config import configure_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")

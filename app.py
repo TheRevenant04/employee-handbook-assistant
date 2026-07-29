@@ -5,12 +5,9 @@ import streamlit as st
 
 from assistant import create_assistant, get_llm_client, get_reranker, get_query_rewriter
 from embedder import Embedder
+from logging_config import configure_logging
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Employee Handbook Assistant", page_icon="📘")
