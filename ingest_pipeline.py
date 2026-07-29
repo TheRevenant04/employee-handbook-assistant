@@ -148,8 +148,7 @@ def main():
     logger.info("=== Employee Handbook Ingest Pipeline ===")
     logger.info("GitHub: %s/%s @ %s", GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH)
 
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         init_db(conn)
 
         documents = fetch_markdown_files()
@@ -159,8 +158,6 @@ def main():
 
         embed_and_store(conn, documents)
         logger.info("=== Ingest complete ===")
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":
