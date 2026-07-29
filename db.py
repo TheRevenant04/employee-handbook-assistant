@@ -13,6 +13,7 @@ load_dotenv()
 
 MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "5"))
 RETRY_BASE_DELAY: float = float(os.getenv("RETRY_BASE_DELAY", "2"))
+CONNECT_TIMEOUT: int = int(os.getenv("CONNECT_TIMEOUT", "10"))
 
 
 def _conninfo():
@@ -28,7 +29,7 @@ def _conninfo():
 def connect_db(*, autocommit=False):
     for attempt in range(MAX_RETRIES):
         try:
-            conn = psycopg.connect(_conninfo(), autocommit=autocommit)
+            conn = psycopg.connect(_conninfo(), autocommit=autocommit, connect_timeout=CONNECT_TIMEOUT)
             register_vector(conn)
             return conn
         except Exception as e:
