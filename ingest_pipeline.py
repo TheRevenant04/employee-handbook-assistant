@@ -11,13 +11,13 @@ from logging_config import configure_logging
 configure_logging()
 logger = logging.getLogger(__name__)
 
-GITHUB_OWNER = os.getenv("GITHUB_OWNER", "madetech")
-GITHUB_REPO = os.getenv("GITHUB_REPO", "handbook")
-GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
+GITHUB_OWNER: str = os.getenv("GITHUB_OWNER", "madetech")
+GITHUB_REPO: str = os.getenv("GITHUB_REPO", "handbook")
+GITHUB_BRANCH: str = os.getenv("GITHUB_BRANCH", "main")
 
-TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
-VECTOR_DIM = int(os.getenv("VECTOR_DIM", "384"))
-MODEL_PATH = os.getenv("MODEL_PATH", "models/Xenova/all-MiniLM-L6-v2")
+TABLE_NAME: str = os.getenv("TABLE_NAME", "employee_handbook")
+VECTOR_DIM: int = int(os.getenv("VECTOR_DIM", "384"))
+MODEL_PATH: str = os.getenv("MODEL_PATH", "models/Xenova/all-MiniLM-L6-v2")
 
 
 def init_db(conn):

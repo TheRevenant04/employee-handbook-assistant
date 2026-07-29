@@ -17,17 +17,17 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
-TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
-MODEL_PATH = os.getenv("MODEL_PATH", "models/Xenova/all-MiniLM-L6-v2")
-RERANKER_MODEL_PATH = os.getenv("RERANKER_MODEL_PATH", "models/Xenova/ms-marco-MiniLM-L-6-v2")
-NUM_RESULTS = int(os.getenv("NUM_RESULTS", "5"))
-HYBRID_ALPHAS = [
+TABLE_NAME: str = os.getenv("TABLE_NAME", "employee_handbook")
+MODEL_PATH: str = os.getenv("MODEL_PATH", "models/Xenova/all-MiniLM-L6-v2")
+RERANKER_MODEL_PATH: str = os.getenv("RERANKER_MODEL_PATH", "models/Xenova/ms-marco-MiniLM-L-6-v2")
+NUM_RESULTS: int = int(os.getenv("NUM_RESULTS", "5"))
+HYBRID_ALPHAS: list[float] = [
     float(x.strip())
     for x in os.getenv("HYBRID_ALPHAS", "0.2,0.5,0.8").split(",")
     if x.strip()
 ]
-GROUND_TRUTH_PATH = os.getenv("GROUND_TRUTH_PATH", "data/ground_truth.csv")
-OUTPUT_DIR = Path(os.getenv("EVAL_OUTPUT_DIR", "data/evaluation"))
+GROUND_TRUTH_PATH: str = os.getenv("GROUND_TRUTH_PATH", "data/ground_truth.csv")
+OUTPUT_DIR: Path = Path(os.getenv("EVAL_OUTPUT_DIR", "data/evaluation"))
 
 
 def load_ground_truth(path: str = GROUND_TRUTH_PATH) -> list[dict[str, Any]]:

@@ -6,8 +6,8 @@ from collections import OrderedDict
 from datetime import datetime, timezone
 
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FORMAT = os.getenv("LOG_FORMAT", "json")
+LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_FORMAT: str = os.getenv("LOG_FORMAT", "json")
 
 
 class JsonFormatter(logging.Formatter):

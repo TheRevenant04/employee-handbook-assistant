@@ -20,20 +20,20 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 
-TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
-GROUND_TRUTH_PATH = os.getenv("GROUND_TRUTH_PATH", "data/ground_truth.csv")
-OUTPUT_DIR = Path(os.getenv("EVAL_OUTPUT_DIR", "data/evaluation"))
+TABLE_NAME: str = os.getenv("TABLE_NAME", "employee_handbook")
+GROUND_TRUTH_PATH: str = os.getenv("GROUND_TRUTH_PATH", "data/ground_truth.csv")
+OUTPUT_DIR: Path = Path(os.getenv("EVAL_OUTPUT_DIR", "data/evaluation"))
 
-JUDGE_BASE_URL = os.getenv("JUDGE_BASE_URL")
-JUDGE_MODEL = os.getenv("JUDGE_MODEL")
-JUDGE_API_KEY = os.getenv("JUDGE_API_KEY")
+JUDGE_BASE_URL: str | None = os.getenv("JUDGE_BASE_URL")
+JUDGE_MODEL: str | None = os.getenv("JUDGE_MODEL")
+JUDGE_API_KEY: str | None = os.getenv("JUDGE_API_KEY")
 
-MAX_WORKERS = int(os.getenv("MAX_WORKERS", "1"))
-MAX_JUDGE_RPM = int(os.getenv("MAX_JUDGE_RPM", "10"))
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
-RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "2"))
+MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "1"))
+MAX_JUDGE_RPM: int = int(os.getenv("MAX_JUDGE_RPM", "10"))
+MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "5"))
+RETRY_BASE_DELAY: float = float(os.getenv("RETRY_BASE_DELAY", "2"))
 
-NUM_RESULTS = int(os.getenv("NUM_RESULTS", "5"))
+NUM_RESULTS: int = int(os.getenv("NUM_RESULTS", "5"))
 
 JUDGE_INSTRUCTIONS = """
 You are an expert evaluator for a retrieval-augmented generation (RAG) system.

@@ -15,17 +15,17 @@ from sanitize import sanitize_for_llm
 
 logger = logging.getLogger(__name__)
 
-SAMPLE_RATE = float(os.getenv("EVAL_SAMPLE_RATE", "0.1"))
-MAX_EVAL_RPM = int(os.getenv("MAX_EVAL_RPM", "10"))
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
-RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "2"))
-JUDGE_COST_PER_INPUT_TOKEN = float(os.getenv("JUDGE_COST_PER_INPUT_TOKEN", "0"))
-JUDGE_COST_PER_OUTPUT_TOKEN = float(os.getenv("JUDGE_COST_PER_OUTPUT_TOKEN", "0"))
-EVAL_WORKERS = int(os.getenv("EVAL_WORKERS", "1"))
+SAMPLE_RATE: float = float(os.getenv("EVAL_SAMPLE_RATE", "0.1"))
+MAX_EVAL_RPM: int = int(os.getenv("MAX_EVAL_RPM", "10"))
+MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "5"))
+RETRY_BASE_DELAY: float = float(os.getenv("RETRY_BASE_DELAY", "2"))
+JUDGE_COST_PER_INPUT_TOKEN: float = float(os.getenv("JUDGE_COST_PER_INPUT_TOKEN", "0"))
+JUDGE_COST_PER_OUTPUT_TOKEN: float = float(os.getenv("JUDGE_COST_PER_OUTPUT_TOKEN", "0"))
+EVAL_WORKERS: int = int(os.getenv("EVAL_WORKERS", "1"))
 
-JUDGE_BASE_URL = os.getenv("JUDGE_BASE_URL")
-JUDGE_MODEL = os.getenv("JUDGE_MODEL")
-JUDGE_API_KEY = os.getenv("JUDGE_API_KEY")
+JUDGE_BASE_URL: str | None = os.getenv("JUDGE_BASE_URL")
+JUDGE_MODEL: str | None = os.getenv("JUDGE_MODEL")
+JUDGE_API_KEY: str | None = os.getenv("JUDGE_API_KEY")
 
 JUDGE_INSTRUCTIONS = """
 You are an expert evaluator for a retrieval-augmented generation (RAG) system.

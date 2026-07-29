@@ -11,8 +11,8 @@ from pgvector.psycopg import register_vector
 logger = logging.getLogger(__name__)
 load_dotenv()
 
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
-RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "2"))
+MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "5"))
+RETRY_BASE_DELAY: float = float(os.getenv("RETRY_BASE_DELAY", "2"))
 
 
 def _conninfo():

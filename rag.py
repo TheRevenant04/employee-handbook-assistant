@@ -10,11 +10,11 @@ from sanitize import sanitize_for_llm
 
 logger = logging.getLogger(__name__)
 
-COST_PER_INPUT_TOKEN = float(os.getenv("COST_PER_INPUT_TOKEN", "0"))
-COST_PER_OUTPUT_TOKEN = float(os.getenv("COST_PER_OUTPUT_TOKEN", "0"))
-TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
-MAX_RETRIES = int(os.getenv("RAG_MAX_RETRIES", "3"))
-RETRY_BASE_DELAY = float(os.getenv("RAG_RETRY_BASE_DELAY", "2"))
+COST_PER_INPUT_TOKEN: float = float(os.getenv("COST_PER_INPUT_TOKEN", "0"))
+COST_PER_OUTPUT_TOKEN: float = float(os.getenv("COST_PER_OUTPUT_TOKEN", "0"))
+TABLE_NAME: str = os.getenv("TABLE_NAME", "employee_handbook")
+MAX_RETRIES: int = int(os.getenv("RAG_MAX_RETRIES", "3"))
+RETRY_BASE_DELAY: float = float(os.getenv("RAG_RETRY_BASE_DELAY", "2"))
 
 INSTRUCTIONS = """
 You are an AI assistant that answers employee questions using only the organization's official Employee Handbook provided to you.

@@ -15,11 +15,11 @@ from logging_config import configure_logging
 configure_logging()
 logger = logging.getLogger(__name__)
 
-TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
-NUM_QUESTIONS_PER_DOC = int(os.getenv("NUM_QUESTIONS_PER_DOC", "5"))
-MAX_REQUESTS_PER_MINUTE = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "10"))
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "5"))
-RETRY_BASE_DELAY = float(os.getenv("RETRY_BASE_DELAY", "10"))
+TABLE_NAME: str = os.getenv("TABLE_NAME", "employee_handbook")
+NUM_QUESTIONS_PER_DOC: int = int(os.getenv("NUM_QUESTIONS_PER_DOC", "5"))
+MAX_REQUESTS_PER_MINUTE: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "10"))
+MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "5"))
+RETRY_BASE_DELAY: float = float(os.getenv("RETRY_BASE_DELAY", "10"))
 
 
 class Questions(BaseModel):
