@@ -1,6 +1,6 @@
 import logging
 import threading
-from queue import Queue
+from queue import Full, Queue
 
 from db import get_connection
 
@@ -11,12 +11,15 @@ _STOP_SENTINEL = object()
 
 class BackgroundWorker:
     def _start_worker(self):
-        self._queue = Queue()
+        self._queue = Queue(maxsize=1000)
         self._worker_thread = threading.Thread(target=self._worker, daemon=True)
         self._worker_thread.start()
 
     def stop(self, timeout=5):
-        self._queue.put(_STOP_SENTINEL)
+        try:
+            self._queue.put_nowait(_STOP_SENTINEL)
+        except Full:
+            pass
         if self._worker_thread.is_alive():
             self._worker_thread.join(timeout=timeout)
 

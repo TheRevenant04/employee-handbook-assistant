@@ -3,7 +3,7 @@ import time
 import random
 import logging
 import threading
-from queue import Queue
+from queue import Full, Queue
 from typing import Any
 
 from pydantic import BaseModel
@@ -100,7 +100,7 @@ _STOP_SENTINEL = object()
 
 class Evaluator:
     def __init__(self):
-        self._queue = Queue()
+        self._queue = Queue(maxsize=1000)
         self._workers = []
         self._enabled = bool(JUDGE_BASE_URL and JUDGE_MODEL and JUDGE_API_KEY)
         if not self._enabled:
@@ -138,7 +138,10 @@ class Evaluator:
 
     def stop(self, timeout=5):
         for _ in self._workers:
-            self._queue.put(_STOP_SENTINEL)
+            try:
+                self._queue.put_nowait(_STOP_SENTINEL)
+            except Full:
+                pass
         deadline = time.monotonic() + timeout
         for t in self._workers:
             remaining = max(0, deadline - time.monotonic())
