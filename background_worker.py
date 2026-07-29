@@ -1,3 +1,4 @@
+import atexit
 import logging
 import threading
 from queue import Full, Queue
@@ -14,6 +15,7 @@ class BackgroundWorker:
         self._queue = Queue(maxsize=1000)
         self._worker_thread = threading.Thread(target=self._worker, daemon=True)
         self._worker_thread.start()
+        atexit.register(self.stop)
 
     def stop(self, timeout=5):
         try:

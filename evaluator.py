@@ -1,3 +1,4 @@
+import atexit
 import os
 import time
 import random
@@ -118,6 +119,7 @@ class Evaluator:
             MAX_EVAL_RPM,
             EVAL_WORKERS,
         )
+        atexit.register(self.stop)
 
     @staticmethod
     def _init_schema():
