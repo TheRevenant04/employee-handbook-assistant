@@ -1,5 +1,6 @@
 from psycopg import sql
 import os
+import time
 import logging
 import traceback
 
@@ -12,6 +13,8 @@ logger = logging.getLogger(__name__)
 COST_PER_INPUT_TOKEN = float(os.getenv("COST_PER_INPUT_TOKEN", "0"))
 COST_PER_OUTPUT_TOKEN = float(os.getenv("COST_PER_OUTPUT_TOKEN", "0"))
 TABLE_NAME = os.getenv("TABLE_NAME", "employee_handbook")
+MAX_RETRIES = int(os.getenv("RAG_MAX_RETRIES", "3"))
+RETRY_BASE_DELAY = float(os.getenv("RAG_RETRY_BASE_DELAY", "2"))
 
 INSTRUCTIONS = """
 You are an AI assistant that answers employee questions using only the organization's official Employee Handbook provided to you.
@@ -262,27 +265,44 @@ class RAG:
         return self.prompt_template.format(question=sanitized_query, context=sanitized_context)
 
     def llm(self, prompt):
-        response = self.llm_client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": self.instructions},
-                {"role": "user", "content": prompt},
-            ],
-        )
-        usage = response.usage
-        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
-        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-        cost = (
-            input_tokens * self.cost_per_input_token
-            + output_tokens * self.cost_per_output_token
-        )
-        text = response.choices[0].message.content if response.choices else ""
-        return {
-            "text": text,
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cost": cost,
-        }
+        last_error = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = self.llm_client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.instructions},
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+                usage = response.usage
+                input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+                output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+                cost = (
+                    input_tokens * self.cost_per_input_token
+                    + output_tokens * self.cost_per_output_token
+                )
+                text = response.choices[0].message.content if response.choices else ""
+                return {
+                    "text": text,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cost": cost,
+                }
+            except Exception as e:
+                last_error = e
+                is_retryable = (
+                    "429" in str(e) or "rate" in str(e).lower()
+                    or "500" in str(e) or "502" in str(e) or "503" in str(e)
+                    or isinstance(e, ConnectionError)
+                    or "timeout" in str(e).lower()
+                )
+                if not is_retryable or attempt >= MAX_RETRIES - 1:
+                    raise
+                delay = RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning("LLM call failed (attempt %d/%d): %s. Retrying in %.0fs...", attempt + 1, MAX_RETRIES, e, delay)
+                time.sleep(delay)
+        raise last_error  # pragma: no cover
 
     def rag(self, query, conversation_id, num_results=5):
         rewritten_query = query
