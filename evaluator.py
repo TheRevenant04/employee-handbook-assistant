@@ -7,11 +7,12 @@ import threading
 from queue import Full, Queue
 from typing import Any
 
-from pydantic import BaseModel
 from openai import OpenAI
+from pydantic import BaseModel
 
 from db import get_connection, init_llm_evaluation_schema
 from sanitize import sanitize_for_llm
+from utils import EvaluationScores, RateLimiter, is_transient_llm_error, retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +59,7 @@ Provide a brief reasoning for each score.
 """.strip()
 
 
-class EvaluationScores(BaseModel):
-    faithfulness_score: int
-    faithfulness_reasoning: str
-    context_relevance_score: int
-    context_relevance_reasoning: str
-    completeness_score: int
-    completeness_reasoning: str
+_STOP_SENTINEL = object()
 
 
 class JudgeResult(BaseModel):
@@ -72,31 +67,6 @@ class JudgeResult(BaseModel):
     input_tokens: int
     output_tokens: int
     cost: float
-
-
-class RateLimiter:
-    def __init__(self, max_requests_per_minute: int):
-        self.max_requests = max_requests_per_minute
-        self.window = 60.0
-        self.timestamps: list[float] = []
-        self.lock = threading.Lock()
-
-    def wait(self):
-        while True:
-            with self.lock:
-                now = time.monotonic()
-                self.timestamps = [t for t in self.timestamps if t > now - self.window]
-                if len(self.timestamps) < self.max_requests:
-                    self.timestamps.append(now)
-                    return
-                sleep_until = self.timestamps[0] + self.window
-                sleep_time = sleep_until - now
-            if sleep_time > 0:
-                logger.info("Eval rate limit: sleeping %.1fs", sleep_time)
-                time.sleep(sleep_time)
-
-
-_STOP_SENTINEL = object()
 
 
 class Evaluator:
@@ -210,38 +180,40 @@ class Evaluator:
             {"role": "user", "content": user_prompt},
         ]
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                self._limiter.wait()
-                response = self._client.beta.chat.completions.parse(
-                    model=JUDGE_MODEL,
-                    messages=messages,
-                    response_format=EvaluationScores,
-                )
-                result = response.choices[0].message.parsed
-                if result is None:
-                    logger.warning("Failed to parse judge response")
-                    return None
+        def _call() -> JudgeResult | None:
+            self._limiter.wait()
+            response = self._client.beta.chat.completions.parse(
+                model=JUDGE_MODEL,
+                messages=messages,
+                response_format=EvaluationScores,
+            )
+            result = response.choices[0].message.parsed
+            if result is None:
+                logger.warning("Failed to parse judge response")
+                return None
 
-                usage = response.usage
-                input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
-                output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-                cost = input_tokens * JUDGE_COST_PER_INPUT_TOKEN + output_tokens * JUDGE_COST_PER_OUTPUT_TOKEN
-                return JudgeResult(
-                    scores=result,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    cost=cost,
-                )
-            except Exception as e:
-                is_rate_limit = "429" in str(e) or "rate" in str(e).lower()
-                if is_rate_limit and attempt < MAX_RETRIES - 1:
-                    delay = RETRY_BASE_DELAY * (2 ** attempt)
-                    logger.warning("Judge rate limited, retrying in %.0fs...", delay)
-                    time.sleep(delay)
-                else:
-                    logger.error("Judge failed: %s", e)
-                    return None
+            usage = response.usage
+            input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+            output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+            cost = input_tokens * JUDGE_COST_PER_INPUT_TOKEN + output_tokens * JUDGE_COST_PER_OUTPUT_TOKEN
+            return JudgeResult(
+                scores=result,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost=cost,
+            )
+
+        try:
+            return retry_with_backoff(
+                _call,
+                max_retries=MAX_RETRIES,
+                base_delay=RETRY_BASE_DELAY,
+                is_retryable=is_transient_llm_error,
+                label="Judge call",
+                logger_name=__name__,
+            )
+        except Exception:
+            return None
 
     def _get_or_create_run(self) -> int:
         with get_connection() as conn:

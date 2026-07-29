@@ -1,6 +1,5 @@
 import os
 import json
-import time
 import logging
 import threading
 from pathlib import Path
@@ -8,13 +7,13 @@ from typing import Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
-from pydantic import BaseModel
 from openai import OpenAI
 from psycopg import sql
 from tqdm.auto import tqdm
 
 from db import get_connection, init_llm_evaluation_schema
 from logging_config import configure_logging
+from utils import EvaluationScores, RateLimiter, is_transient_llm_error, load_ground_truth, retry_with_backoff
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -66,56 +65,6 @@ Provide a brief reasoning for each score.
 """.strip()
 
 
-class EvaluationScores(BaseModel):
-    faithfulness_score: int
-    faithfulness_reasoning: str
-    context_relevance_score: int
-    context_relevance_reasoning: str
-    completeness_score: int
-    completeness_reasoning: str
-
-
-class RateLimiter:
-    def __init__(self, max_requests_per_minute: int):
-        self.max_requests = max_requests_per_minute
-        self.window = 60.0
-        self.timestamps: list[float] = []
-        self.lock = threading.Lock()
-
-    def wait(self):
-        while True:
-            with self.lock:
-                now = time.monotonic()
-                self.timestamps = [t for t in self.timestamps if t > now - self.window]
-
-                if len(self.timestamps) < self.max_requests:
-                    self.timestamps.append(now)
-                    return
-
-                sleep_until = self.timestamps[0] + self.window
-                sleep_time = sleep_until - now
-
-            if sleep_time > 0:
-                logger.info("Rate limit: sleeping %.1fs", sleep_time)
-                time.sleep(sleep_time)
-
-
-def load_ground_truth(path: str = GROUND_TRUTH_PATH) -> list[dict[str, Any]]:
-    df = pd.read_csv(path)
-
-    required_columns = {"question", "document"}
-    missing = required_columns - set(df.columns)
-    if missing:
-        raise ValueError(f"Ground truth file is missing required columns: {sorted(missing)}")
-
-    df = df.dropna(subset=["question", "document"]).copy()
-    df["question"] = df["question"].astype(str).str.strip()
-    df["document"] = df["document"].astype(str).str.strip()
-    df = df[(df["question"] != "") & (df["document"] != "")]
-
-    return df.to_dict(orient="records")
-
-
 def get_document_content(doc_path: str) -> str | None:
     conn = get_connection()
     try:
@@ -152,34 +101,29 @@ def judge_answer(
         {"role": "user", "content": user_prompt},
     ]
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            limiter.wait()
-            response = client.beta.chat.completions.parse(
-                model=JUDGE_MODEL,
-                messages=messages,
-                response_format=EvaluationScores,
-            )
+    def _call() -> EvaluationScores:
+        limiter.wait()
+        response = client.beta.chat.completions.parse(
+            model=JUDGE_MODEL,
+            messages=messages,
+            response_format=EvaluationScores,
+        )
+        result = response.choices[0].message.parsed
+        if result is None:
+            logger.warning("Failed to parse judge response for question: %s", question[:80])
+        return result
 
-            result = response.choices[0].message.parsed
-            if result is None:
-                logger.warning("Failed to parse judge response for question: %s", question[:80])
-                return None
-
-            return result
-
-        except Exception as e:
-            is_rate_limit = "429" in str(e) or "rate" in str(e).lower()
-            if is_rate_limit and attempt < MAX_RETRIES - 1:
-                delay = RETRY_BASE_DELAY * (2 ** attempt)
-                logger.warning(
-                    "Judge rate limited (attempt %d/%d), retrying in %.0fs...",
-                    attempt + 1, MAX_RETRIES, delay,
-                )
-                time.sleep(delay)
-            else:
-                logger.error("Judge failed: %s", e)
-                return None
+    try:
+        return retry_with_backoff(
+            _call,
+            max_retries=MAX_RETRIES,
+            base_delay=RETRY_BASE_DELAY,
+            is_retryable=is_transient_llm_error,
+            label="Judge call",
+            logger_name=__name__,
+        )
+    except Exception:
+        return None
 
 
 def store_run(
@@ -334,7 +278,7 @@ def main():
 
     init_llm_evaluation_schema()
 
-    ground_truth = load_ground_truth()
+    ground_truth = load_ground_truth(GROUND_TRUTH_PATH)
     if not ground_truth:
         logger.error("No ground truth rows found.")
         return

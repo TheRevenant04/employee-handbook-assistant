@@ -1,8 +1,6 @@
 import os
 import json
-import time
 import logging
-import collections
 import pandas as pd
 from pydantic import BaseModel
 from openai import OpenAI
@@ -11,6 +9,7 @@ from tqdm.auto import tqdm
 
 from db import get_connection
 from logging_config import configure_logging
+from utils import RateLimiter, is_transient_llm_error, retry_with_backoff
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -34,27 +33,6 @@ If possible, use as fewer words as possible from the document.
 The output should resemble how people ask questions on the internet.
 Not too formal, not too short, not too long.
 """.strip()
-
-
-class RateLimiter:
-    def __init__(self, max_requests_per_minute):
-        self.max_requests = max_requests_per_minute
-        self.window = 60.0
-        self.timestamps = collections.deque()
-
-    def wait(self):
-        now = time.monotonic()
-        while self.timestamps and self.timestamps[0] <= now - self.window:
-            self.timestamps.popleft()
-
-        if len(self.timestamps) >= self.max_requests:
-            sleep_until = self.timestamps[0] + self.window
-            sleep_time = sleep_until - now
-            if sleep_time > 0:
-                logger.info("Rate limit: sleeping %.1fs", sleep_time)
-                time.sleep(sleep_time)
-
-        self.timestamps.append(time.monotonic())
 
 
 def load_documents():
@@ -82,38 +60,34 @@ def generate_questions_for_doc(client, doc):
         {"role": "user", "content": user_prompt},
     ]
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                response_format=Questions,
-            )
+    def _call() -> list[dict[str, str]]:
+        response = client.beta.chat.completions.parse(
+            model=model,
+            messages=messages,
+            response_format=Questions,
+        )
 
-            result = response.choices[0].message.parsed
-            if result is None:
-                logger.warning("Failed to parse response for doc: %s", doc["path"])
-                return []
+        result = response.choices[0].message.parsed
+        if result is None:
+            logger.warning("Failed to parse response for doc: %s", doc["path"])
+            return []
 
-            records = []
-            for q in result.questions:
-                records.append({
-                    "question": q,
-                    "document": doc["path"],
-                })
-            return records
+        records = []
+        for q in result.questions:
+            records.append({
+                "question": q,
+                "document": doc["path"],
+            })
+        return records
 
-        except Exception as e:
-            is_rate_limit = "429" in str(e) or "rate" in str(e).lower()
-            if is_rate_limit and attempt < MAX_RETRIES - 1:
-                delay = RETRY_BASE_DELAY * (2 ** attempt)
-                logger.warning(
-                    "Rate limited on doc %s (attempt %d/%d), retrying in %.0fs...",
-                    doc["path"], attempt + 1, MAX_RETRIES, delay,
-                )
-                time.sleep(delay)
-            else:
-                raise
+    return retry_with_backoff(
+        _call,
+        max_retries=MAX_RETRIES,
+        base_delay=RETRY_BASE_DELAY,
+        is_retryable=is_transient_llm_error,
+        label=f"generate_questions({doc['path']})",
+        logger_name=__name__,
+    )
 
 
 def main():

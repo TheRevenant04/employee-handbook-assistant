@@ -1,12 +1,12 @@
 from psycopg import sql
 import os
-import time
 import logging
 import traceback
 
 from metrics import MetricsCollector
 from db import get_connection
 from sanitize import sanitize_for_llm
+from utils import retry_with_backoff, is_transient_llm_error
 
 logger = logging.getLogger(__name__)
 
@@ -265,44 +265,37 @@ class RAG:
         return self.prompt_template.format(question=sanitized_query, context=sanitized_context)
 
     def llm(self, prompt):
-        last_error = None
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = self.llm_client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": self.instructions},
-                        {"role": "user", "content": prompt},
-                    ],
-                )
-                usage = response.usage
-                input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
-                output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
-                cost = (
-                    input_tokens * self.cost_per_input_token
-                    + output_tokens * self.cost_per_output_token
-                )
-                text = response.choices[0].message.content if response.choices else ""
-                return {
-                    "text": text,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                    "cost": cost,
-                }
-            except Exception as e:
-                last_error = e
-                is_retryable = (
-                    "429" in str(e) or "rate" in str(e).lower()
-                    or "500" in str(e) or "502" in str(e) or "503" in str(e)
-                    or isinstance(e, ConnectionError)
-                    or "timeout" in str(e).lower()
-                )
-                if not is_retryable or attempt >= MAX_RETRIES - 1:
-                    raise
-                delay = RETRY_BASE_DELAY * (2 ** attempt)
-                logger.warning("LLM call failed (attempt %d/%d): %s. Retrying in %.0fs...", attempt + 1, MAX_RETRIES, e, delay)
-                time.sleep(delay)
-        raise last_error  # pragma: no cover
+        def _call() -> dict:
+            response = self.llm_client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.instructions},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            usage = response.usage
+            input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+            output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+            cost = (
+                input_tokens * self.cost_per_input_token
+                + output_tokens * self.cost_per_output_token
+            )
+            text = response.choices[0].message.content if response.choices else ""
+            return {
+                "text": text,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost": cost,
+            }
+
+        return retry_with_backoff(
+            _call,
+            max_retries=MAX_RETRIES,
+            base_delay=RETRY_BASE_DELAY,
+            is_retryable=is_transient_llm_error,
+            label="LLM call",
+            logger_name=__name__,
+        )
 
     def rag(self, query, conversation_id, num_results=5):
         rewritten_query = query

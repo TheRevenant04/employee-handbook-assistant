@@ -1,5 +1,4 @@
 import os
-import time
 import logging
 from contextlib import contextmanager
 
@@ -7,6 +6,8 @@ from dotenv import load_dotenv
 import psycopg
 from psycopg import sql
 from pgvector.psycopg import register_vector
+
+from utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -27,26 +28,18 @@ def _conninfo():
 
 
 def connect_db(*, autocommit=False):
-    for attempt in range(MAX_RETRIES):
-        try:
-            conn = psycopg.connect(_conninfo(), autocommit=autocommit, connect_timeout=CONNECT_TIMEOUT)
-            register_vector(conn)
-            return conn
-        except Exception as e:
-            delay = RETRY_BASE_DELAY * (2 ** attempt)
-            if attempt < MAX_RETRIES - 1:
-                logger.warning(
-                    "DB connect failed (attempt %d/%d): %s. Retrying in %.1fs...",
-                    attempt + 1, MAX_RETRIES, e, delay,
-                )
-                time.sleep(delay)
-            else:
-                logger.error(
-                    "DB connect failed after %d attempts: %s",
-                    MAX_RETRIES, e,
-                    exc_info=True,
-                )
-                raise
+    def _do_connect():
+        conn = psycopg.connect(_conninfo(), autocommit=autocommit, connect_timeout=CONNECT_TIMEOUT)
+        register_vector(conn)
+        return conn
+
+    return retry_with_backoff(
+        _do_connect,
+        max_retries=MAX_RETRIES,
+        base_delay=RETRY_BASE_DELAY,
+        label="DB connect",
+        logger_name=__name__,
+    )
 
 
 @contextmanager
