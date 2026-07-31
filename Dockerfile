@@ -33,4 +33,4 @@ COPY --from=builder /app /app
 
 EXPOSE 8501
 
-CMD sh -c "python scripts/init_database.py && streamlit run src/ui/streamlit_app.py --server.address=0.0.0.0 --server.port=8501"
+CMD ["streamlit", "run", "src/ui/streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501"]

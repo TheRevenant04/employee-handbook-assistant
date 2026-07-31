@@ -50,12 +50,14 @@ services:
     volumes:
       - app_postgres_data:/var/lib/postgresql
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./scripts/app_db_docker_entrypoint.sh:/docker-entrypoint-custom.sh:ro
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "7432:5432"
+    entrypoint: ["/docker-entrypoint-custom.sh"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 30s

@@ -7,3 +7,6 @@ data/
 .env
 grafana/provisioning/datasources/postgres.yml
 *.egg-info
+.idea/
+.vscode/
+.coverage
