@@ -4,10 +4,10 @@ import pytest
 
 
 class TestConnectDb:
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.vectorstore.pgvector_store.psycopg.connect")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_connects_with_env_vars(self, mock_connect, mock_register):
-        from app.vectorstore.pgvector_store import connect_db
+        from src.retrieval.vectorstore import connect_db
 
         mock_connect.return_value = MagicMock()
 
@@ -30,10 +30,10 @@ class TestConnectDb:
             assert "host=testhost" in conn_str
             assert "port=5433" in conn_str
 
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.vectorstore.pgvector_store.psycopg.connect")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_uses_defaults_when_env_missing(self, mock_connect, mock_register):
-        from app.vectorstore.pgvector_store import connect_db
+        from src.retrieval.vectorstore import connect_db
 
         mock_connect.return_value = MagicMock()
 
@@ -43,11 +43,11 @@ class TestConnectDb:
             assert "dbname=employee_handbook" in conn_str
             assert "port=5432" in conn_str
 
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.core.dependencies.time.sleep")
-    @patch("app.vectorstore.pgvector_store.psycopg.connect")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.core.retry.time.sleep")
+    @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_retries_on_transient_failure(self, mock_connect, mock_sleep, mock_register):
-        from app.vectorstore.pgvector_store import connect_db
+        from src.retrieval.vectorstore import connect_db
 
         mock_connect.side_effect = [Exception("timeout"), MagicMock()]
 
@@ -56,11 +56,11 @@ class TestConnectDb:
         assert mock_connect.call_count == 2
         assert result is not None
 
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.core.dependencies.time.sleep")
-    @patch("app.vectorstore.pgvector_store.psycopg.connect")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.core.retry.time.sleep")
+    @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_raises_after_max_retries(self, mock_connect, mock_sleep, mock_register):
-        from app.vectorstore.pgvector_store import connect_db
+        from src.retrieval.vectorstore import connect_db
 
         mock_connect.side_effect = Exception("Connection refused")
 
@@ -69,12 +69,12 @@ class TestConnectDb:
 
         assert mock_connect.call_count == 5
 
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.core.dependencies.time.sleep")
-    @patch("app.vectorstore.pgvector_store.psycopg.connect")
-    @patch("app.vectorstore.pgvector_store.RETRY_BASE_DELAY", 2.0)
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.core.retry.time.sleep")
+    @patch("src.retrieval.vectorstore.psycopg.connect")
+    @patch("src.retrieval.vectorstore.RETRY_BASE_DELAY", 2.0)
     def test_exponential_backoff_delays(self, mock_connect, mock_sleep, mock_register):
-        from app.vectorstore.pgvector_store import connect_db
+        from src.retrieval.vectorstore import connect_db
 
         mock_connect.side_effect = [Exception("e1"), Exception("e2"), MagicMock()]
 
@@ -83,10 +83,10 @@ class TestConnectDb:
         delays = [call.args[0] for call in mock_sleep.call_args_list]
         assert delays == [2.0, 4.0]
 
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.vectorstore.pgvector_store.psycopg.connect")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_returns_connection_and_registers_vector(self, mock_connect, mock_register):
-        from app.vectorstore.pgvector_store import connect_db
+        from src.retrieval.vectorstore import connect_db
 
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
@@ -96,11 +96,11 @@ class TestConnectDb:
         assert result is mock_conn
         mock_register.assert_called_once_with(mock_conn)
 
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.core.dependencies.time.sleep")
-    @patch("app.vectorstore.pgvector_store.psycopg.connect")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.core.retry.time.sleep")
+    @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_raises_on_invalid_conninfo(self, mock_connect, mock_sleep, mock_register):
-        from app.vectorstore.pgvector_store import connect_db
+        from src.retrieval.vectorstore import connect_db
 
         mock_connect.side_effect = Exception("Invalid connection info")
 
@@ -109,10 +109,10 @@ class TestConnectDb:
 
 
 class TestGetConnection:
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.vectorstore.pgvector_store.connect_db")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.retrieval.vectorstore.connect_db")
     def test_returns_connection_from_connect_db(self, mock_connect_db, mock_register):
-        from app.vectorstore import pgvector_store as db
+        from src.retrieval import vectorstore as db
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -122,10 +122,10 @@ class TestGetConnection:
             assert conn is mock_conn
         mock_connect_db.assert_called_once_with(autocommit=False)
 
-    @patch("app.vectorstore.pgvector_store.register_vector")
-    @patch("app.vectorstore.pgvector_store.connect_db")
+    @patch("src.retrieval.vectorstore.register_vector")
+    @patch("src.retrieval.vectorstore.connect_db")
     def test_passes_autocommit(self, mock_connect_db, mock_register):
-        from app.vectorstore import pgvector_store as db
+        from src.retrieval import vectorstore as db
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -137,9 +137,9 @@ class TestGetConnection:
 
 
 class TestInitDb:
-    @patch("app.vectorstore.pgvector_store.get_connection")
+    @patch("src.retrieval.vectorstore.get_connection")
     def test_creates_tables_and_indexes(self, mock_get_connection):
-        from app.vectorstore.pgvector_store import init_db
+        from src.retrieval.vectorstore import init_db
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -150,9 +150,9 @@ class TestInitDb:
         cursor = mock_conn.cursor.return_value.__enter__.return_value
         assert cursor.execute.call_count >= 4
 
-    @patch("app.vectorstore.pgvector_store.get_connection")
+    @patch("src.retrieval.vectorstore.get_connection")
     def test_ivfflat_index_type(self, mock_get_connection):
-        from app.vectorstore.pgvector_store import init_db
+        from src.retrieval.vectorstore import init_db
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -165,22 +165,22 @@ class TestInitDb:
         assert any("ivfflat" in c for c in calls)
 
     def test_invalid_dim_raises(self):
-        from app.vectorstore.pgvector_store import init_db
+        from src.retrieval.vectorstore import init_db
 
         with pytest.raises(ValueError, match="dim must be a positive integer"):
             init_db(dim=-1)
 
     def test_non_int_dim_raises(self):
-        from app.vectorstore.pgvector_store import init_db
+        from src.retrieval.vectorstore import init_db
 
         with pytest.raises(ValueError, match="dim must be a positive integer"):
             init_db(dim="abc")
 
 
 class TestMigrateAddTsvector:
-    @patch("app.vectorstore.pgvector_store.get_connection")
+    @patch("src.retrieval.vectorstore.get_connection")
     def test_adds_column_and_index(self, mock_get_connection):
-        from app.vectorstore.pgvector_store import migrate_add_tsvector
+        from src.retrieval.vectorstore import migrate_add_tsvector
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn

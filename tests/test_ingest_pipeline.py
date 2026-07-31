@@ -2,11 +2,11 @@ from unittest.mock import MagicMock, patch, mock_open
 
 import pytest
 
-from app.ingestion import pipeline as ingest_pipeline
+from src.ingestion import pipeline as ingest_pipeline
 
 
 class TestFetchMarkdownFiles:
-    @patch("app.ingestion.pipeline.requests.Session")
+    @patch("src.ingestion.pipeline.requests.Session")
     def test_fetches_markdown_files(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
@@ -33,7 +33,7 @@ class TestFetchMarkdownFiles:
         assert files[0]["path"] == "policies/leave.md"
         assert files[1]["path"] == "README.md"
 
-    @patch("app.ingestion.pipeline.requests.Session")
+    @patch("src.ingestion.pipeline.requests.Session")
     def test_returns_empty_when_no_markdown(self, mock_session_cls):
         mock_session = MagicMock()
         mock_session_cls.return_value = mock_session
@@ -46,7 +46,7 @@ class TestFetchMarkdownFiles:
         files = ingest_pipeline.fetch_markdown_files()
         assert files == []
 
-    @patch("app.ingestion.pipeline.requests.Session")
+    @patch("src.ingestion.pipeline.requests.Session")
     def test_raises_on_api_error(self, mock_session_cls):
         import requests
 
@@ -59,7 +59,7 @@ class TestFetchMarkdownFiles:
 
 
 class TestEmbedAndStore:
-    @patch("app.embeddings.provider.Embedder")
+    @patch("src.retrieval.embedder.Embedder")
     def test_embeds_and_stores_documents(self, mock_embedder_cls):
         import numpy as np
 
@@ -83,7 +83,7 @@ class TestEmbedAndStore:
         mock_cursor.executemany.assert_called_once()
         mock_conn.commit.assert_called_once()
 
-    @patch("app.embeddings.provider.Embedder")
+    @patch("src.retrieval.embedder.Embedder")
     def test_handles_empty_documents(self, mock_embedder_cls):
         import numpy as np
 
@@ -101,14 +101,4 @@ class TestEmbedAndStore:
         mock_conn.commit.assert_called_once()
 
 
-class TestInitDb:
-    def test_creates_table_and_indexes(self):
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
-        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
-        ingest_pipeline.init_db(mock_conn)
-
-        assert mock_cursor.execute.call_count >= 4
-        mock_conn.commit.assert_called_once()

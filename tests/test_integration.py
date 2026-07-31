@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from app.generation.answer_chain import RAG
-from app.services.rag_service import create_assistant
+from src.rag.answer_chain import RAG
+from src.services.rag_service import create_assistant
 
 
 def _make_db_mock(fetchall_return):
@@ -71,7 +71,7 @@ class TestRAGIntegration:
         defaults.update(overrides)
         return RAG(**defaults), mock_llm, mock_chat_store, mock_metrics
 
-    @patch("app.generation.answer_chain.get_connection")
+    @patch("src.rag.answer_chain.get_connection")
     def test_end_to_end_search_and_llm(self, mock_get_conn):
         conn_cm, _ = _make_db_mock([
             (1, "policies/leave.md", "Annual leave is 25 days.", 0.2),
@@ -91,7 +91,7 @@ class TestRAGIntegration:
         mock_chat_store.add_message.assert_called_once()
         mock_chat_store.record_metrics.assert_called_once()
 
-    @patch("app.generation.answer_chain.get_connection")
+    @patch("src.rag.answer_chain.get_connection")
     def test_search_results_used_in_prompt(self, mock_get_conn):
         conn_cm, _ = _make_db_mock([
             (1, "policies/leave.md", "Annual leave is 25 days.", 0.2),
@@ -106,7 +106,7 @@ class TestRAGIntegration:
         assert "Annual leave is 25 days." in prompt_used
         assert "leave days" in prompt_used
 
-    @patch("app.generation.answer_chain.get_connection")
+    @patch("src.rag.answer_chain.get_connection")
     def test_reranker_reorders_results(self, mock_get_conn):
         conn_cm, _ = _make_db_mock([
             (1, "a.md", "low relevance", 0.8),
@@ -126,7 +126,7 @@ class TestRAGIntegration:
         prompt_used = mock_llm.chat.completions.create.call_args[1]["messages"][1]["content"]
         assert "high relevance" in prompt_used
 
-    @patch("app.generation.answer_chain.get_connection")
+    @patch("src.rag.answer_chain.get_connection")
     def test_query_rewriter_modifies_query(self, mock_get_conn):
         conn_cm, _ = _make_db_mock([
             (1, "a.md", "content", 0.3),
@@ -141,7 +141,7 @@ class TestRAGIntegration:
 
         mock_rewriter.rewrite.assert_called_once_with("how many days off lol")
 
-    @patch("app.generation.answer_chain.get_connection")
+    @patch("src.rag.answer_chain.get_connection")
     def test_metrics_recorded_with_correct_values(self, mock_get_conn):
         conn_cm, _ = _make_db_mock([
             (1, "a.md", "content", 0.3),
@@ -157,7 +157,7 @@ class TestRAGIntegration:
         assert metrics_call["success"] is True
         assert metrics_call["model"] is not None
 
-    @patch("app.generation.answer_chain.get_connection")
+    @patch("src.rag.answer_chain.get_connection")
     def test_empty_search_results(self, mock_get_conn):
         conn_cm, _ = _make_db_mock([])
         mock_get_conn.return_value = conn_cm
@@ -173,18 +173,18 @@ class TestRAGIntegration:
 class TestAssistantIntegration:
     """Test the create_assistant factory wires everything correctly."""
 
-    @patch("app.services.rag_service.Evaluator")
-    @patch("app.services.rag_service.MetricsCollector")
-    @patch("app.services.rag_service.ChatStore")
-    @patch("app.services.rag_service.RAG")
-    @patch("app.services.rag_service.get_query_rewriter", return_value=None)
-    @patch("app.services.rag_service.get_reranker", return_value=None)
-    @patch("app.services.rag_service.get_llm_client")
+    @patch("src.services.rag_service.Evaluator")
+    @patch("src.services.rag_service.MetricsCollector")
+    @patch("src.services.rag_service.ChatStore")
+    @patch("src.services.rag_service.RAG")
+    @patch("src.services.rag_service.get_query_rewriter", return_value=None)
+    @patch("src.services.rag_service.get_reranker", return_value=None)
+    @patch("src.services.rag_service.get_llm_client")
     def test_factory_returns_wired_rag(
         self, mock_get_llm, mock_get_reranker, mock_get_rewriter,
         mock_rag_cls, mock_chat_store_cls, mock_metrics_cls, mock_evaluator_cls,
     ):
-        from app.embeddings.provider import Embedder
+        from src.retrieval.embedder import Embedder
 
         mock_llm = MagicMock()
         mock_get_llm.return_value = mock_llm

@@ -26,7 +26,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Total Queries",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM chat.messages", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM messages", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -39,7 +39,7 @@
       "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
       "title": "Success Rate",
       "type": "gauge",
-      "targets": [{ "rawSql": "SELECT ROUND(100.0 * SUM(CASE WHEN mt.success THEN 1 ELSE 0 END) / COUNT(*), 1) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(100.0 * SUM(CASE WHEN mt.success THEN 1 ELSE 0 END) / COUNT(*), 1) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -52,7 +52,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Avg Total Latency",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(mt.total_latency_ms)::numeric, 0) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(mt.total_latency_ms)::numeric, 0) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -65,7 +65,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Errors",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id WHERE NOT mt.success", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id WHERE NOT mt.success", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -78,7 +78,7 @@
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
       "title": "Queries Over Time",
       "type": "timeseries",
-      "targets": [{ "rawSql": "SELECT created_at AS time, COUNT(*) AS queries FROM chat.messages WHERE $__timeFilter(created_at) GROUP BY created_at ORDER BY created_at", "format": "time_series", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT created_at AS time, COUNT(*) AS queries FROM messages WHERE $__timeFilter(created_at) GROUP BY created_at ORDER BY created_at", "format": "time_series", "refId": "A" }]
     },
 
     {
@@ -96,7 +96,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Avg Retrieval Latency",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(mt.retrieval_latency_ms)::numeric, 0) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id WHERE mt.retrieval_latency_ms IS NOT NULL", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(mt.retrieval_latency_ms)::numeric, 0) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id WHERE mt.retrieval_latency_ms IS NOT NULL", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -106,7 +106,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Avg LLM Latency",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(mt.llm_latency_ms)::numeric, 0) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id WHERE mt.llm_latency_ms IS NOT NULL", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(mt.llm_latency_ms)::numeric, 0) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id WHERE mt.llm_latency_ms IS NOT NULL", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -116,7 +116,7 @@
       "options": { "legend": { "calcs": ["mean"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
       "title": "Latency Over Time",
       "type": "timeseries",
-      "targets": [{ "rawSql": "SELECT m.created_at AS time, mt.retrieval_latency_ms AS \"Retrieval\", mt.llm_latency_ms AS \"LLM\" FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id WHERE $__timeFilter(m.created_at) ORDER BY m.created_at", "format": "time_series", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT m.created_at AS time, mt.retrieval_latency_ms AS \"Retrieval\", mt.llm_latency_ms AS \"LLM\" FROM messages m JOIN message_metrics mt ON mt.message_id = m.id WHERE $__timeFilter(m.created_at) ORDER BY m.created_at", "format": "time_series", "refId": "A" }]
     },
 
     {
@@ -134,7 +134,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Total Cost",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COALESCE(SUM(mt.cost), 0) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COALESCE(SUM(mt.cost), 0) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -144,7 +144,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Total Input Tokens",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COALESCE(SUM(mt.input_tokens), 0) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COALESCE(SUM(mt.input_tokens), 0) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -154,7 +154,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Total Output Tokens",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COALESCE(SUM(mt.output_tokens), 0) AS value FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COALESCE(SUM(mt.output_tokens), 0) AS value FROM messages m JOIN message_metrics mt ON mt.message_id = m.id", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -164,7 +164,7 @@
       "options": { "legend": { "calcs": ["sum"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
       "title": "Cost Over Time",
       "type": "timeseries",
-      "targets": [{ "rawSql": "SELECT m.created_at AS time, mt.cost FROM chat.messages m JOIN chat.message_metrics mt ON mt.message_id = m.id WHERE $__timeFilter(m.created_at) ORDER BY m.created_at", "format": "time_series", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT m.created_at AS time, mt.cost FROM messages m JOIN message_metrics mt ON mt.message_id = m.id WHERE $__timeFilter(m.created_at) ORDER BY m.created_at", "format": "time_series", "refId": "A" }]
     },
 
     {
@@ -182,7 +182,7 @@
       "options": { "legend": { "displayMode": "list", "placement": "right", "showLegend": true }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "tooltip": { "mode": "single", "sort": "none" } },
       "title": "Rating Distribution",
       "type": "piechart",
-      "targets": [{ "rawSql": "SELECT 'Thumbs Up' AS metric, COUNT(*) AS value FROM chat.messages WHERE rating = 1 UNION ALL SELECT 'Thumbs Down', COUNT(*) FROM chat.messages WHERE rating = -1", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT 'Thumbs Up' AS metric, COUNT(*) AS value FROM messages WHERE rating = 1 UNION ALL SELECT 'Thumbs Down', COUNT(*) FROM messages WHERE rating = -1", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -192,7 +192,7 @@
       "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
       "title": "Approval Rate",
       "type": "gauge",
-      "targets": [{ "rawSql": "SELECT CASE WHEN COUNT(*) = 0 THEN 0 ELSE ROUND(SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END)::numeric / COUNT(*), 2) END AS value FROM chat.messages WHERE rating IS NOT NULL", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT CASE WHEN COUNT(*) = 0 THEN 0 ELSE ROUND(SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END)::numeric / COUNT(*), 2) END AS value FROM messages WHERE rating IS NOT NULL", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -202,7 +202,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Total Rated",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM chat.messages WHERE rating IS NOT NULL", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM messages WHERE rating IS NOT NULL", "format": "table", "refId": "A" }]
     },
 
     {
@@ -220,7 +220,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Total Ingestion Runs",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM rag_metrics.ingestion_metrics", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM ingestion_metrics", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -230,7 +230,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Total Documents Ingested",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COALESCE(SUM(num_documents), 0) AS value FROM rag_metrics.ingestion_metrics", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COALESCE(SUM(num_documents), 0) AS value FROM ingestion_metrics", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -240,7 +240,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Avg Ingestion Latency",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(ingestion_latency_ms)::numeric, 0) AS value FROM rag_metrics.ingestion_metrics WHERE ingestion_latency_ms IS NOT NULL", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(ingestion_latency_ms)::numeric, 0) AS value FROM ingestion_metrics WHERE ingestion_latency_ms IS NOT NULL", "format": "table", "refId": "A" }]
     },
 
     {
@@ -258,7 +258,7 @@
       "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [{ "desc": true, "displayName": "timestamp" }] },
       "title": "Recent Errors",
       "type": "table",
-      "targets": [{ "rawSql": "SELECT timestamp, source, error_type, error_message FROM rag_metrics.error_log ORDER BY timestamp DESC LIMIT 20", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT timestamp, source, error_type, error_message FROM error_log ORDER BY timestamp DESC LIMIT 20", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -268,7 +268,7 @@
       "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [{ "desc": true, "displayName": "created_at" }] },
       "title": "Recent Queries",
       "type": "table",
-      "targets": [{ "rawSql": "SELECT m.created_at, LEFT(m.question, 80) AS question, LEFT(m.answer, 120) AS answer, ROUND(mt.total_latency_ms, 0) AS total_ms, ROUND(mt.retrieval_latency_ms, 0) AS retrieval_ms, ROUND(mt.llm_latency_ms, 0) AS llm_ms, mt.input_tokens, mt.output_tokens, ROUND(mt.cost, 6) AS cost, mt.success, m.rating FROM chat.messages m LEFT JOIN chat.message_metrics mt ON mt.message_id = m.id ORDER BY m.created_at DESC LIMIT 20", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT m.created_at, LEFT(m.question, 80) AS question, LEFT(m.answer, 120) AS answer, ROUND(mt.total_latency_ms, 0) AS total_ms, ROUND(mt.retrieval_latency_ms, 0) AS retrieval_ms, ROUND(mt.llm_latency_ms, 0) AS llm_ms, mt.input_tokens, mt.output_tokens, ROUND(mt.cost, 6) AS cost, mt.success, m.rating FROM messages m LEFT JOIN message_metrics mt ON mt.message_id = m.id ORDER BY m.created_at DESC LIMIT 20", "format": "table", "refId": "A" }]
     },
 
     {
@@ -286,7 +286,7 @@
       "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
       "title": "Avg Faithfulness",
       "type": "gauge",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(faithfulness_score)::numeric, 2) AS value FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs)", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(faithfulness_score)::numeric, 2) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs)", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -296,7 +296,7 @@
       "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
       "title": "Avg Context Relevance",
       "type": "gauge",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(context_relevance_score)::numeric, 2) AS value FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs)", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(context_relevance_score)::numeric, 2) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs)", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -306,7 +306,7 @@
       "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
       "title": "Avg Completeness",
       "type": "gauge",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(completeness_score)::numeric, 2) AS value FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs)", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT ROUND(AVG(completeness_score)::numeric, 2) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs)", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -316,7 +316,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
       "title": "Questions Evaluated",
       "type": "stat",
-      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs)", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs)", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -326,7 +326,7 @@
       "options": { "legend": { "displayMode": "list", "placement": "right", "showLegend": true }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "tooltip": { "mode": "single", "sort": "none" } },
       "title": "Faithfulness Distribution",
       "type": "piechart",
-      "targets": [{ "rawSql": "SELECT faithfulness_score::text AS metric, COUNT(*) AS value FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs) GROUP BY faithfulness_score ORDER BY faithfulness_score", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT faithfulness_score::text AS metric, COUNT(*) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs) GROUP BY faithfulness_score ORDER BY faithfulness_score", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -336,7 +336,7 @@
       "options": { "legend": { "displayMode": "list", "placement": "right", "showLegend": true }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "tooltip": { "mode": "single", "sort": "none" } },
       "title": "Context Relevance Distribution",
       "type": "piechart",
-      "targets": [{ "rawSql": "SELECT context_relevance_score::text AS metric, COUNT(*) AS value FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs) GROUP BY context_relevance_score ORDER BY context_relevance_score", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT context_relevance_score::text AS metric, COUNT(*) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs) GROUP BY context_relevance_score ORDER BY context_relevance_score", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -346,7 +346,7 @@
       "options": { "legend": { "displayMode": "list", "placement": "right", "showLegend": true }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "tooltip": { "mode": "single", "sort": "none" } },
       "title": "Completeness Distribution",
       "type": "piechart",
-      "targets": [{ "rawSql": "SELECT completeness_score::text AS metric, COUNT(*) AS value FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs) GROUP BY completeness_score ORDER BY completeness_score", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT completeness_score::text AS metric, COUNT(*) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs) GROUP BY completeness_score ORDER BY completeness_score", "format": "table", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -356,7 +356,7 @@
       "options": { "legend": { "calcs": ["mean"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } },
       "title": "Scores Over Runs",
       "type": "timeseries",
-      "targets": [{ "rawSql": "SELECT erun.timestamp AS time, ROUND(AVG(CASE WHEN sub.metric = 'faithfulness' THEN sub.score END)::numeric, 2) AS \"Faithfulness\", ROUND(AVG(CASE WHEN sub.metric = 'context_relevance' THEN sub.score END)::numeric, 2) AS \"Context Relevance\", ROUND(AVG(CASE WHEN sub.metric = 'completeness' THEN sub.score END)::numeric, 2) AS \"Completeness\" FROM llm_evaluation.evaluation_runs erun JOIN llm_evaluation.evaluation_results er ON er.run_id = erun.id CROSS JOIN (SELECT 'faithfulness' AS metric UNION ALL SELECT 'context_relevance' UNION ALL SELECT 'completeness') sub GROUP BY erun.timestamp, sub.metric ORDER BY erun.timestamp", "format": "time_series", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT erun.timestamp AS time, ROUND(AVG(CASE WHEN sub.metric = 'faithfulness' THEN sub.score END)::numeric, 2) AS \"Faithfulness\", ROUND(AVG(CASE WHEN sub.metric = 'context_relevance' THEN sub.score END)::numeric, 2) AS \"Context Relevance\", ROUND(AVG(CASE WHEN sub.metric = 'completeness' THEN sub.score END)::numeric, 2) AS \"Completeness\" FROM evaluation_runs erun JOIN evaluation_results er ON er.run_id = erun.id CROSS JOIN (SELECT 'faithfulness' AS metric UNION ALL SELECT 'context_relevance' UNION ALL SELECT 'completeness') sub GROUP BY erun.timestamp, sub.metric ORDER BY erun.timestamp", "format": "time_series", "refId": "A" }]
     },
     {
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
@@ -366,7 +366,7 @@
       "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [{ "desc": false, "displayName": "faithfulness_score" }] },
       "title": "Worst Answers",
       "type": "table",
-      "targets": [{ "rawSql": "SELECT LEFT(m.question, 80) AS question, LEFT(m.answer, 120) AS answer, er.faithfulness_score, LEFT(er.faithfulness_reasoning, 100) AS faithfulness_reasoning, er.context_relevance_score, LEFT(er.context_relevance_reasoning, 100) AS context_relevance_reasoning, er.completeness_score, LEFT(er.completeness_reasoning, 100) AS completeness_reasoning FROM llm_evaluation.evaluation_results er JOIN llm_evaluation.evaluation_runs erun ON erun.id = er.run_id JOIN chat.messages m ON m.id = er.message_id WHERE erun.id = (SELECT MAX(id) FROM llm_evaluation.evaluation_runs) AND (er.faithfulness_score <= 2 OR er.completeness_score <= 2) ORDER BY er.faithfulness_score ASC, er.completeness_score ASC LIMIT 20", "format": "table", "refId": "A" }]
+      "targets": [{ "rawSql": "SELECT LEFT(m.question, 80) AS question, LEFT(m.answer, 120) AS answer, er.faithfulness_score, LEFT(er.faithfulness_reasoning, 100) AS faithfulness_reasoning, er.context_relevance_score, LEFT(er.context_relevance_reasoning, 100) AS context_relevance_reasoning, er.completeness_score, LEFT(er.completeness_reasoning, 100) AS completeness_reasoning FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id JOIN messages m ON m.id = er.message_id WHERE erun.id = (SELECT MAX(id) FROM evaluation_runs) AND (er.faithfulness_score <= 2 OR er.completeness_score <= 2) ORDER BY er.faithfulness_score ASC, er.completeness_score ASC LIMIT 20", "format": "table", "refId": "A" }]
     }
   ],
   "schemaVersion": 41,

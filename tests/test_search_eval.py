@@ -8,14 +8,14 @@ import pytest
 
 class TestLoadGroundTruth:
     def test_loads_csv(self):
-        from app.evaluation.search_eval import load_ground_truth
+        from src.evaluation.search_eval import load_ground_truth
 
         df = pd.DataFrame({
             "question": ["Q1", "Q2"],
             "document": ["doc1.md", "doc2.md"],
         })
 
-        with patch("app.evaluation.search_eval.pd.read_csv", return_value=df):
+        with patch("src.evaluation.search_eval.pd.read_csv", return_value=df):
             result = load_ground_truth("fake.csv")
 
         assert len(result) == 2
@@ -23,23 +23,23 @@ class TestLoadGroundTruth:
         assert result[1]["document"] == "doc2.md"
 
     def test_raises_on_missing_columns(self):
-        from app.evaluation.search_eval import load_ground_truth
+        from src.evaluation.search_eval import load_ground_truth
 
         df = pd.DataFrame({"question": ["Q1"]})
 
-        with patch("app.evaluation.search_eval.pd.read_csv", return_value=df):
+        with patch("src.evaluation.search_eval.pd.read_csv", return_value=df):
             with pytest.raises(ValueError, match="missing required columns"):
                 load_ground_truth("fake.csv")
 
     def test_drops_empty_rows(self):
-        from app.evaluation.search_eval import load_ground_truth
+        from src.evaluation.search_eval import load_ground_truth
 
         df = pd.DataFrame({
             "question": ["Q1", "", "  ", "Q2"],
             "document": ["doc1.md", "doc2.md", "  ", ""],
         })
 
-        with patch("app.evaluation.search_eval.pd.read_csv", return_value=df):
+        with patch("src.evaluation.search_eval.pd.read_csv", return_value=df):
             result = load_ground_truth("fake.csv")
 
         assert len(result) == 1
@@ -48,49 +48,49 @@ class TestLoadGroundTruth:
 
 class TestHitRate:
     def test_hit_rate_all_hits(self):
-        from app.evaluation.search_eval import hit_rate
+        from src.evaluation.search_eval import hit_rate
 
         relevance = [[1, 0], [1], [0, 1]]
         assert hit_rate(relevance) == 1.0
 
     def test_hit_rate_partial(self):
-        from app.evaluation.search_eval import hit_rate
+        from src.evaluation.search_eval import hit_rate
 
         relevance = [[1, 0], [0, 0], [1]]
         assert hit_rate(relevance) == 2 / 3
 
     def test_hit_rate_empty(self):
-        from app.evaluation.search_eval import hit_rate
+        from src.evaluation.search_eval import hit_rate
 
         assert hit_rate([]) == 0.0
 
     def test_hit_rate_no_hits(self):
-        from app.evaluation.search_eval import hit_rate
+        from src.evaluation.search_eval import hit_rate
 
         assert hit_rate([[0, 0], [0]]) == 0.0
 
 
 class TestMRR:
     def test_mrr_all_first_rank(self):
-        from app.evaluation.search_eval import mrr
+        from src.evaluation.search_eval import mrr
 
         relevance = [[1], [1, 0], [1, 0, 0]]
         assert mrr(relevance) == 1.0
 
     def test_mrr_varied_ranks(self):
-        from app.evaluation.search_eval import mrr
+        from src.evaluation.search_eval import mrr
 
         relevance = [[1], [0, 1], [0, 0, 1]]
         expected = (1.0 + 1 / 2 + 1 / 3) / 3
         assert mrr(relevance) == pytest.approx(expected)
 
     def test_mrr_empty(self):
-        from app.evaluation.search_eval import mrr
+        from src.evaluation.search_eval import mrr
 
         assert mrr([]) == 0.0
 
     def test_mrr_no_hits(self):
-        from app.evaluation.search_eval import mrr
+        from src.evaluation.search_eval import mrr
 
         relevance = [[0, 0], [0]]
         assert mrr(relevance) == 0.0
@@ -98,7 +98,7 @@ class TestMRR:
 
 class TestComputeRelevanceRow:
     def test_hit_found(self):
-        from app.evaluation.search_eval import compute_relevance_row
+        from src.evaluation.search_eval import compute_relevance_row
 
         def search_fn(q):
             return [{"path": "doc1.md"}, {"path": "doc2.md"}]
@@ -112,7 +112,7 @@ class TestComputeRelevanceRow:
         assert debug["correct_rank"] == 2
 
     def test_hit_not_found(self):
-        from app.evaluation.search_eval import compute_relevance_row
+        from src.evaluation.search_eval import compute_relevance_row
 
         def search_fn(q):
             return [{"path": "doc1.md"}, {"path": "doc3.md"}]
@@ -128,7 +128,7 @@ class TestComputeRelevanceRow:
 
 class TestComputeRelevanceTotal:
     def test_returns_relevance_and_debug(self):
-        from app.evaluation.search_eval import compute_relevance_total
+        from src.evaluation.search_eval import compute_relevance_total
 
         ground_truth = [
             {"question": "q1", "document": "doc1.md"},
@@ -149,7 +149,7 @@ class TestComputeRelevanceTotal:
 
 class TestEvaluateMethod:
     def test_returns_metrics(self):
-        from app.evaluation.search_eval import evaluate_method
+        from src.evaluation.search_eval import evaluate_method
 
         ground_truth = [
             {"question": "q1", "document": "doc1.md"},
@@ -169,11 +169,11 @@ class TestEvaluateMethod:
 
 
 class TestSaveOutputs:
-    @patch("app.evaluation.search_eval.pd.DataFrame.to_csv")
-    @patch("app.evaluation.search_eval.pd.DataFrame.to_json")
-    @patch("app.evaluation.search_eval.os.makedirs")
+    @patch("src.evaluation.search_eval.pd.DataFrame.to_csv")
+    @patch("src.evaluation.search_eval.pd.DataFrame.to_json")
+    @patch("src.evaluation.search_eval.os.makedirs")
     def test_saves_outputs(self, mock_makedirs, mock_json, mock_csv):
-        from app.evaluation.search_eval import save_outputs
+        from src.evaluation.search_eval import save_outputs
 
         save_outputs(
             [{"method": "vector", "hit_rate": 0.5, "mrr": 0.5, "questions_evaluated": 1}],
@@ -185,9 +185,9 @@ class TestSaveOutputs:
 
 
 class TestSearchEvaluator:
-    @patch("app.evaluation.search_eval.get_connection")
+    @patch("src.evaluation.search_eval.get_connection")
     def test_vector_search(self, mock_get_conn):
-        from app.evaluation.search_eval import SearchEvaluator
+        from src.evaluation.search_eval import SearchEvaluator
 
         embedder = MagicMock()
         embedder.encode.return_value = np.array([0.1, 0.2, 0.3])
@@ -206,15 +206,15 @@ class TestSearchEvaluator:
         assert results[0]["method"] == "vector"
 
     def test_rerank_search_raises_without_reranker(self):
-        from app.evaluation.search_eval import SearchEvaluator
+        from src.evaluation.search_eval import SearchEvaluator
 
         evaluator = SearchEvaluator(MagicMock(), reranker=None)
         with pytest.raises(ValueError, match="Reranker not loaded"):
             evaluator.rerank_search("query")
 
-    @patch("app.evaluation.search_eval.get_connection")
+    @patch("src.evaluation.search_eval.get_connection")
     def test_keyword_search(self, mock_get_conn):
-        from app.evaluation.search_eval import SearchEvaluator
+        from src.evaluation.search_eval import SearchEvaluator
 
         embedder = MagicMock()
         evaluator = SearchEvaluator(embedder)
@@ -230,7 +230,7 @@ class TestSearchEvaluator:
         assert results[0]["method"] == "keyword"
 
     def test_embedding_cache(self):
-        from app.evaluation.search_eval import SearchEvaluator
+        from src.evaluation.search_eval import SearchEvaluator
 
         embedder = MagicMock()
         evaluator = SearchEvaluator(embedder)

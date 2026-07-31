@@ -29,6 +29,7 @@ services:
         condition: service_healthy
 
 
+
   kestra_postgres:
     image: postgres:18
     volumes:
@@ -48,6 +49,7 @@ services:
     image: pgvector/pgvector:pg18
     volumes:
       - app_postgres_data:/var/lib/postgresql
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

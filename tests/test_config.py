@@ -6,7 +6,7 @@ import pytest
 
 class TestSettings:
     def test_default_values(self):
-        from app.core.config import Settings
+        from src.core.config import Settings
 
         s = Settings()
         assert s.github_owner == "madetech"
@@ -18,7 +18,7 @@ class TestSettings:
         assert s.llm_base_url is None
 
     def test_custom_values(self):
-        from app.core.config import Settings
+        from src.core.config import Settings
 
         s = Settings(pg_host="pg.example.com", pg_port=6432, vector_dim=768)
         assert s.pg_host == "pg.example.com"
@@ -37,7 +37,7 @@ class TestSettings:
         "LLM_MODEL": "gpt-4",
     }, clear=False)
     def test_from_env(self):
-        from app.core.config import Settings
+        from src.core.config import Settings
 
         s = Settings.from_env()
         assert s.pg_database == "test_db"
@@ -52,7 +52,7 @@ class TestSettings:
 
     @patch.dict(os.environ, {}, clear=True)
     def test_from_env_defaults(self):
-        from app.core.config import Settings
+        from src.core.config import Settings
 
         s = Settings.from_env()
         assert s.pg_database == "employee_handbook"
@@ -63,7 +63,8 @@ class TestSettings:
         assert s.llm_api_key is None
 
     def test_module_level_settings(self):
-        from app.core.config import settings
+        from src.core.config import settings
 
         assert isinstance(settings, object)
         assert hasattr(settings, "pg_database")
+

@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.generation.query_rewriter import QueryRewriter
+from src.rag.query_rewriter import QueryRewriter
 
 
 class TestQueryRewriter:

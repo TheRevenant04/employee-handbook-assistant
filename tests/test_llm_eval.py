@@ -4,13 +4,13 @@ import pytest
 
 
 class TestJudgeAnswer:
-    @patch("app.evaluation.llm_eval.retry_with_backoff")
+    @patch("src.evaluation.llm_eval.retry_with_backoff")
     def test_judge_answer_success(self, mock_retry):
         mock_retry.side_effect = lambda fn, **kw: fn()
 
-        from app.evaluation.llm_eval import judge_answer
+        from src.evaluation.llm_eval import judge_answer
 
-        from app.core.dependencies import EvaluationScores
+        from src.domain.evaluation import EvaluationScores
         mock_scores = EvaluationScores(
             faithfulness_score=4, faithfulness_reasoning="good",
             context_relevance_score=3, context_relevance_reasoning="ok",
@@ -28,11 +28,11 @@ class TestJudgeAnswer:
         assert result.completeness_score == 5
         limiter.wait.assert_called_once()
 
-    @patch("app.evaluation.llm_eval.retry_with_backoff")
+    @patch("src.evaluation.llm_eval.retry_with_backoff")
     def test_judge_answer_returns_none_on_failure(self, mock_retry):
         mock_retry.side_effect = Exception("failed")
 
-        from app.evaluation.llm_eval import judge_answer
+        from src.evaluation.llm_eval import judge_answer
 
         client = MagicMock()
         limiter = MagicMock()
@@ -40,11 +40,11 @@ class TestJudgeAnswer:
         result = judge_answer(client, "q", "a", "c", "d", limiter)
         assert result is None
 
-    @patch("app.evaluation.llm_eval.retry_with_backoff")
+    @patch("src.evaluation.llm_eval.retry_with_backoff")
     def test_judge_answer_handles_null_parsed(self, mock_retry):
         mock_retry.side_effect = lambda fn, **kw: fn()
 
-        from app.evaluation.llm_eval import judge_answer
+        from src.evaluation.llm_eval import judge_answer
 
         client = MagicMock()
         client.beta.chat.completions.parse.return_value.choices[0].message.parsed = None
@@ -55,9 +55,9 @@ class TestJudgeAnswer:
 
 
 class TestGetDocumentContent:
-    @patch("app.evaluation.llm_eval.get_connection")
+    @patch("src.evaluation.llm_eval.get_connection")
     def test_found(self, mock_get_conn):
-        from app.evaluation.llm_eval import get_document_content
+        from src.evaluation.llm_eval import get_document_content
 
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = ("content here",)
@@ -68,9 +68,9 @@ class TestGetDocumentContent:
         result = get_document_content("doc.md")
         assert result == "content here"
 
-    @patch("app.evaluation.llm_eval.get_connection")
+    @patch("src.evaluation.llm_eval.get_connection")
     def test_not_found(self, mock_get_conn):
-        from app.evaluation.llm_eval import get_document_content
+        from src.evaluation.llm_eval import get_document_content
 
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = None
@@ -83,9 +83,9 @@ class TestGetDocumentContent:
 
 
 class TestStoreRun:
-    @patch("app.evaluation.llm_eval.get_connection")
+    @patch("src.evaluation.llm_eval.get_connection")
     def test_creates_run(self, mock_get_conn):
-        from app.evaluation.llm_eval import store_run
+        from src.evaluation.llm_eval import store_run
 
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = (42,)
@@ -99,10 +99,10 @@ class TestStoreRun:
 
 
 class TestStoreResult:
-    @patch("app.evaluation.llm_eval.get_connection")
+    @patch("src.evaluation.llm_eval.get_connection")
     def test_stores_result(self, mock_get_conn):
-        from app.evaluation.llm_eval import store_result
-        from app.core.dependencies import EvaluationScores
+        from src.evaluation.llm_eval import store_result
+        from src.domain.evaluation import EvaluationScores
 
         scores = EvaluationScores(
             faithfulness_score=5, faithfulness_reasoning="perfect",
@@ -120,12 +120,12 @@ class TestStoreResult:
 
 
 class TestEvaluateQuestion:
-    @patch("app.evaluation.llm_eval.get_document_content")
-    @patch("app.evaluation.llm_eval.judge_answer")
-    @patch("app.evaluation.llm_eval.store_result")
+    @patch("src.evaluation.llm_eval.get_document_content")
+    @patch("src.evaluation.llm_eval.judge_answer")
+    @patch("src.evaluation.llm_eval.store_result")
     def test_evaluate_question_success(self, mock_store, mock_judge, mock_get_doc):
-        from app.evaluation.llm_eval import evaluate_question
-        from app.core.dependencies import EvaluationScores
+        from src.evaluation.llm_eval import evaluate_question
+        from src.domain.evaluation import EvaluationScores
 
         mock_get_doc.return_value = "expected content"
         mock_scores = EvaluationScores(
@@ -153,9 +153,9 @@ class TestEvaluateQuestion:
         assert result["faithfulness_score"] == 4
         mock_store.assert_called_once()
 
-    @patch("app.evaluation.llm_eval.get_document_content")
+    @patch("src.evaluation.llm_eval.get_document_content")
     def test_skips_when_doc_missing(self, mock_get_doc):
-        from app.evaluation.llm_eval import evaluate_question
+        from src.evaluation.llm_eval import evaluate_question
 
         mock_get_doc.return_value = None
 
@@ -166,9 +166,9 @@ class TestEvaluateQuestion:
         )
         assert result is None
 
-    @patch("app.evaluation.llm_eval.get_document_content")
+    @patch("src.evaluation.llm_eval.get_document_content")
     def test_skips_when_rag_fails(self, mock_get_doc):
-        from app.evaluation.llm_eval import evaluate_question
+        from src.evaluation.llm_eval import evaluate_question
 
         mock_get_doc.return_value = "content"
         assistant = MagicMock()
@@ -183,12 +183,12 @@ class TestEvaluateQuestion:
 
 
 class TestSaveOutputs:
-    @patch("app.evaluation.llm_eval.pd.DataFrame.to_csv")
-    @patch("app.evaluation.llm_eval.json.dump")
+    @patch("src.evaluation.llm_eval.pd.DataFrame.to_csv")
+    @patch("src.evaluation.llm_eval.json.dump")
     @patch("builtins.open")
-    @patch("app.evaluation.llm_eval.os.makedirs")
+    @patch("src.evaluation.llm_eval.os.makedirs")
     def test_saves_outputs(self, mock_makedirs, mock_open, mock_json, mock_csv):
-        from app.evaluation.llm_eval import save_outputs
+        from src.evaluation.llm_eval import save_outputs
 
         save_outputs(
             [{"question": "q1", "faithfulness_score": 4}],
@@ -201,14 +201,12 @@ class TestSaveOutputs:
 
 class TestMain:
     def test_main_requires_env_vars(self):
-        from app.evaluation.llm_eval import main
+        from src.evaluation.llm_eval import main
 
-        with patch("app.evaluation.llm_eval.JUDGE_BASE_URL", None):
-            with patch("app.evaluation.llm_eval.JUDGE_MODEL", None):
-                with patch("app.evaluation.llm_eval.JUDGE_API_KEY", None):
-                    with patch("app.evaluation.llm_eval.init_llm_evaluation_schema") as m_init:
-                        with patch("app.evaluation.llm_eval.load_ground_truth") as m_load:
-                            main()
+        with patch("src.evaluation.llm_eval.JUDGE_BASE_URL", None):
+            with patch("src.evaluation.llm_eval.JUDGE_MODEL", None):
+                with patch("src.evaluation.llm_eval.JUDGE_API_KEY", None):
+                    with patch("src.evaluation.llm_eval.load_ground_truth") as m_load:
+                        main()
 
-        m_init.assert_not_called()
         m_load.assert_not_called()

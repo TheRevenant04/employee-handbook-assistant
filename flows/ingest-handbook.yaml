@@ -7,12 +7,30 @@ description: >
 tasks:
   - id: ingest
     type: io.kestra.plugin.scripts.python.Commands
-    beforeCommands:
-      - pip install uv > /dev/null 2>&1
-      - uv sync --frozen
-      - uv run python scripts/download_models.py
     commands:
-      - uv run python scripts/ingest_docs.py
+      - |
+        set -e
+        cd /app/project
+
+        echo "[START] pip install uv"
+        time pip3 install uv > /dev/null 2>&1
+        echo "[END] pip install uv"
+
+        echo "[START] uv add onnxruntime tokenizers numpy"
+        time uv add onnxruntime tokenizers numpy
+        echo "[END] uv add onnxruntime tokenizers numpy"
+
+        echo "[START] uv add --dev huggingface-hub"
+        time uv add --dev huggingface-hub
+        echo "[END] uv add --dev huggingface-hub"
+
+        echo "[START] download_models.py"
+        time uv run python scripts/download_models.py
+        echo "[END] download_models.py"
+
+        echo "[START] pipeline.py"
+        time uv run python src/ingestion/pipeline.py
+        echo "[END] pipeline.py"
     env:
       GITHUB_OWNER: "{{ envs.github_owner }}"
       GITHUB_REPO: "{{ envs.github_repo }}"
@@ -25,9 +43,8 @@ tasks:
       TABLE_NAME: "{{ envs.table_name }}"
       VECTOR_DIM: "{{ envs.vector_dim }}"
       MODEL_PATH: "{{ envs.model_path }}"
-    workingDir: /app/project
     taskRunner:
       type: io.kestra.plugin.scripts.runner.docker.Docker
-      image: python:3.13-slim
+      image: python:3.12-slim
       volumes:
         - ./:/app/project:rw
