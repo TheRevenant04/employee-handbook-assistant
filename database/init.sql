@@ -33,10 +33,10 @@ CREATE TABLE IF NOT EXISTS conversations (
 CREATE TABLE IF NOT EXISTS messages (
     id BIGSERIAL PRIMARY KEY,
     conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     question TEXT NOT NULL,
     answer TEXT,
-    rating SMALLINT CHECK (rating IS NULL OR rating BETWEEN 1 AND 5)
+    rating SMALLINT CHECK (rating IS NULL OR rating IN (-1, 1)),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_conversation
@@ -50,7 +50,6 @@ CREATE INDEX IF NOT EXISTS idx_conversations_updated
 CREATE TABLE IF NOT EXISTS message_metrics (
     id BIGSERIAL PRIMARY KEY,
     message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     total_latency_ms FLOAT NOT NULL,
     retrieval_latency_ms FLOAT,
     llm_latency_ms FLOAT,
@@ -61,21 +60,25 @@ CREATE TABLE IF NOT EXISTS message_metrics (
     success BOOLEAN NOT NULL DEFAULT true,
     input_tokens INT,
     output_tokens INT,
-    cost NUMERIC(12, 6) NOT NULL DEFAULT 0
+    cost NUMERIC(12, 6) NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_metrics_message
     ON message_metrics (message_id);
 
+CREATE INDEX IF NOT EXISTS idx_metrics_created
+    ON message_metrics (created_at DESC);
+
 
 -- Evaluation runs and results
 CREATE TABLE IF NOT EXISTS evaluation_runs (
     id BIGSERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
     judge_model TEXT NOT NULL,
     evaluated_model TEXT NOT NULL,
     num_questions INT NOT NULL CHECK (num_questions >= 0),
-    config JSONB
+    config JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS evaluation_results (
@@ -101,25 +104,34 @@ CREATE INDEX IF NOT EXISTS idx_eval_results_run
 CREATE INDEX IF NOT EXISTS idx_eval_results_msg
     ON evaluation_results (message_id);
 
+CREATE INDEX IF NOT EXISTS idx_eval_runs_created
+    ON evaluation_runs (created_at DESC);
+
 
 -- Monitoring: ingestion metrics and error log
 CREATE TABLE IF NOT EXISTS ingestion_metrics (
     id BIGSERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
     num_documents INT NOT NULL,
     ingestion_latency_ms FLOAT,
     model TEXT,
-    success BOOLEAN NOT NULL DEFAULT true
+    success BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS error_log (
     id BIGSERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
     source TEXT NOT NULL,
     error_type TEXT NOT NULL,
     error_message TEXT NOT NULL,
-    stack_trace TEXT
+    stack_trace TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS idx_ingestion_metrics_created
+    ON ingestion_metrics (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_error_log_created
+    ON error_log (created_at DESC);
 
 
 -- Trigger to keep conversations.updated_at fresh
