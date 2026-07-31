@@ -1,7 +1,7 @@
 """Initialize database schemas and tables on container startup.
 
 Creates the target database if it doesn't exist, then reads and
-executes the SQL DDL from postgres/init.sql.
+executes the SQL DDL from database/init.sql.
 """
 
 import logging
@@ -15,7 +15,7 @@ from psycopg import sql, OperationalError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-INIT_SQL_PATH = Path(os.getenv("INIT_SQL_PATH", "postgres/init.sql"))
+INIT_SQL_PATH = Path(os.getenv("INIT_SQL_PATH", "database/init.sql"))
 TARGET_DB = os.getenv("PGDATABASE", "employee_handbook")
 
 def _validate_env():

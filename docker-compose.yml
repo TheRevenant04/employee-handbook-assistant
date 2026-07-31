@@ -49,7 +49,7 @@ services:
     image: pgvector/pgvector:pg18
     volumes:
       - app_postgres_data:/var/lib/postgresql
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - ./scripts/app_db_docker_entrypoint.sh:/docker-entrypoint-custom.sh:ro
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
