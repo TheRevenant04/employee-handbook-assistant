@@ -93,3 +93,51 @@ class TestStreamlitApp:
             load_conversation_history(assistant)
             assistant.chat_store.get_messages.assert_not_called()
 
+    def test_error_during_query_exits_spinner_before_stop(self):
+        from streamlit.runtime.scriptrunner_utils.exceptions import StopException
+
+        from src.ui.streamlit_app import main
+
+        class SessionState(dict):
+            def __getattr__(self, key):
+                return self[key]
+
+            def __setattr__(self, key, value):
+                self[key] = value
+
+        calls = []
+
+        class RecordingSpinner:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __enter__(self):
+                calls.append("spinner_enter")
+
+            def __exit__(self, *args):
+                calls.append("spinner_exit")
+                return False
+
+        def fake_stop():
+            calls.append("stop")
+            raise StopException
+
+        with patch("src.ui.streamlit_app.st") as mock_st:
+            mock_st.session_state = SessionState(
+                assistant=MagicMock(rag=MagicMock(side_effect=RuntimeError("boom"))),
+                conversation_id=None,
+                messages=[],
+            )
+            mock_st.session_state.assistant.chat_store = MagicMock()
+            mock_st.chat_input.return_value = "my question"
+            mock_st.chat_message.return_value.__enter__ = MagicMock(return_value=None)
+            mock_st.chat_message.return_value.__exit__ = MagicMock(return_value=False)
+            mock_st.spinner = RecordingSpinner
+            mock_st.stop.side_effect = fake_stop
+
+            with pytest.raises(StopException):
+                main()
+
+        assert calls == ["spinner_enter", "spinner_exit", "stop"]
+        mock_st.error.assert_called_once_with("Something went wrong. Please try again.")
+

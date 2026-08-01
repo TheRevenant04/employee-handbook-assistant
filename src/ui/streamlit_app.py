@@ -126,13 +126,13 @@ def main():
 
         conversation_id = ensure_conversation(assistant, user_input)
 
-        with st.spinner("Thinking..."):
-            try:
+        try:
+            with st.spinner("Thinking..."):
                 result = assistant.rag(user_input, conversation_id=conversation_id)
-            except Exception as e:
-                logger.error("RAG query failed: %s", e, exc_info=True)
-                st.error("Something went wrong. Please try again.")
-                st.stop()
+        except Exception as e:
+            logger.error("RAG query failed: %s", e, exc_info=True)
+            st.error("Something went wrong. Please try again.")
+            st.stop()
 
         answer = result.get("answer", "No answer returned.")
         message_id = result.get("id") or str(uuid.uuid4())
