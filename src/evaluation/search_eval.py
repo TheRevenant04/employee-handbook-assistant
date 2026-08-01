@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 from src.retrieval.embedder import Embedder
 from src.retrieval.reranker import Reranker
 from src.retrieval.vectorstore import get_connection
-from src.core.logging import configure_logging
+from src.utils.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)

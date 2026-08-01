@@ -7,7 +7,7 @@ import psycopg
 from psycopg import sql
 from pgvector.psycopg import register_vector
 
-from src.core.retry import retry_with_backoff
+from src.utils.retry import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 load_dotenv()

@@ -8,7 +8,7 @@ import pytest
 
 class TestJsonFormatter:
     def test_format_basic_record(self):
-        from src.core.logging import JsonFormatter
+        from src.utils.logging import JsonFormatter
 
         formatter = JsonFormatter()
         record = logging.LogRecord(
@@ -31,7 +31,7 @@ class TestJsonFormatter:
 
     def test_format_with_exception(self):
         import traceback
-        from src.core.logging import JsonFormatter
+        from src.utils.logging import JsonFormatter
 
         formatter = JsonFormatter()
         try:
@@ -52,7 +52,7 @@ class TestJsonFormatter:
         assert "ZeroDivisionError" in data["exception"]
 
     def test_format_with_extra_fields(self):
-        from src.core.logging import JsonFormatter
+        from src.utils.logging import JsonFormatter
 
         formatter = JsonFormatter()
         record = logging.LogRecord(
@@ -70,7 +70,7 @@ class TestJsonFormatter:
 
 class TestConfigureLogging:
     def test_configure_json_format(self):
-        from src.core.logging import configure_logging, JsonFormatter
+        from src.utils.logging import configure_logging, JsonFormatter
 
         with patch.object(logging.getLogger(), "hasHandlers", return_value=False):
             with patch.dict("os.environ", {"LOG_FORMAT": "json", "LOG_LEVEL": "DEBUG"}, clear=False):
@@ -80,7 +80,7 @@ class TestConfigureLogging:
         assert found
 
     def test_configure_text_format(self):
-        from src.core.logging import configure_logging
+        from src.utils.logging import configure_logging
 
         with patch.object(logging.getLogger(), "hasHandlers", return_value=False):
             with patch.dict("os.environ", {"LOG_FORMAT": "text", "LOG_LEVEL": "WARNING"}, clear=False):
@@ -93,7 +93,7 @@ class TestConfigureLogging:
         assert found
 
     def test_idempotent_when_handlers_exist(self):
-        from src.core.logging import configure_logging, JsonFormatter
+        from src.utils.logging import configure_logging, JsonFormatter
 
         with patch.object(logging.getLogger(), "hasHandlers", return_value=True):
             before = len(logging.getLogger().handlers)

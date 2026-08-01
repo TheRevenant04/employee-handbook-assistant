@@ -6,7 +6,7 @@ import traceback
 from src.evaluation.metrics import MetricsCollector
 from src.retrieval.vectorstore import get_connection
 from src.retrieval.filters import sanitize_for_llm
-from src.core.retry import retry_with_backoff, is_transient_llm_error
+from src.utils.retry import retry_with_backoff, is_transient_llm_error
 
 logger = logging.getLogger(__name__)
 

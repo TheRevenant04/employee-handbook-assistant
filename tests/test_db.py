@@ -44,7 +44,7 @@ class TestConnectDb:
             assert "port=5432" in conn_str
 
     @patch("src.retrieval.vectorstore.register_vector")
-    @patch("src.core.retry.time.sleep")
+    @patch("src.utils.retry.time.sleep")
     @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_retries_on_transient_failure(self, mock_connect, mock_sleep, mock_register):
         from src.retrieval.vectorstore import connect_db
@@ -57,7 +57,7 @@ class TestConnectDb:
         assert result is not None
 
     @patch("src.retrieval.vectorstore.register_vector")
-    @patch("src.core.retry.time.sleep")
+    @patch("src.utils.retry.time.sleep")
     @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_raises_after_max_retries(self, mock_connect, mock_sleep, mock_register):
         from src.retrieval.vectorstore import connect_db
@@ -70,7 +70,7 @@ class TestConnectDb:
         assert mock_connect.call_count == 5
 
     @patch("src.retrieval.vectorstore.register_vector")
-    @patch("src.core.retry.time.sleep")
+    @patch("src.utils.retry.time.sleep")
     @patch("src.retrieval.vectorstore.psycopg.connect")
     @patch("src.retrieval.vectorstore.RETRY_BASE_DELAY", 2.0)
     def test_exponential_backoff_delays(self, mock_connect, mock_sleep, mock_register):
@@ -97,7 +97,7 @@ class TestConnectDb:
         mock_register.assert_called_once_with(mock_conn)
 
     @patch("src.retrieval.vectorstore.register_vector")
-    @patch("src.core.retry.time.sleep")
+    @patch("src.utils.retry.time.sleep")
     @patch("src.retrieval.vectorstore.psycopg.connect")
     def test_raises_on_invalid_conninfo(self, mock_connect, mock_sleep, mock_register):
         from src.retrieval.vectorstore import connect_db

@@ -5,7 +5,7 @@ import streamlit as st
 
 from src.services.rag_service import create_assistant, get_llm_client, get_reranker, get_query_rewriter
 from src.retrieval.embedder import Embedder
-from src.core.logging import configure_logging
+from src.utils.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)

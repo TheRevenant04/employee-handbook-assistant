@@ -1,0 +1,15 @@
+# Core behavior
+* text=auto
+
+# Force LF for all Linux-executed / config files
+*.sh   text eol=lf
+*.sql  text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+Dockerfile      text eol=lf
+docker-compose.yml     text eol=lf
+docker-compose.yaml    text eol=lf
+
+# Ensure entrypoint scripts are LF (explicit, in case of unusual names)
+*entrypoint*.sh text eol=lf
+*.entrypoint.sh text eol=lf

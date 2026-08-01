@@ -4,7 +4,7 @@ import traceback
 from contextlib import contextmanager
 
 from src.retrieval.vectorstore import get_connection
-from src.services.background_worker import BackgroundWorker
+from src.utils.background_worker import BackgroundWorker
 
 logger = logging.getLogger(__name__)
 
