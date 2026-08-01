@@ -4,7 +4,7 @@ import pytest
 
 class TestDocument:
     def test_default_construction(self):
-        from app.schemas.document import Document
+        from src.domain.document import Document
 
         doc = Document(path="test.md", content="hello")
         assert doc.path == "test.md"
@@ -13,7 +13,7 @@ class TestDocument:
         assert doc.metadata == {}
 
     def test_with_embedding_and_metadata(self):
-        from app.schemas.document import Document
+        from src.domain.document import Document
 
         emb = np.array([0.1, 0.2, 0.3])
         doc = Document(path="test.md", content="hello", embedding=emb, metadata={"key": "val"})
@@ -23,7 +23,7 @@ class TestDocument:
 
 class TestChunk:
     def test_default_construction(self):
-        from app.schemas.document import Chunk
+        from src.domain.document import Chunk
 
         chunk = Chunk(document_path="test.md", content="chunk text", chunk_index=0)
         assert chunk.document_path == "test.md"
@@ -32,7 +32,7 @@ class TestChunk:
         assert chunk.embedding is None
 
     def test_with_embedding(self):
-        from app.schemas.document import Chunk
+        from src.domain.document import Chunk
 
         emb = np.array([0.1, 0.2])
         chunk = Chunk(document_path="test.md", content="text", chunk_index=1, embedding=emb)
@@ -41,7 +41,7 @@ class TestChunk:
 
 class TestQuery:
     def test_default_construction(self):
-        from app.schemas.query import Query
+        from src.domain.query import Query
 
         q = Query(text="what is leave policy")
         assert q.text == "what is leave policy"
@@ -49,7 +49,7 @@ class TestQuery:
         assert q.metadata == {}
 
     def test_with_rewritten_text(self):
-        from app.schemas.query import Query
+        from src.domain.query import Query
 
         q = Query(text="leave", rewritten_text="leave policy details")
         assert q.rewritten_text == "leave policy details"
@@ -57,7 +57,7 @@ class TestQuery:
 
 class TestSearchResult:
     def test_default_construction(self):
-        from app.schemas.query import SearchResult
+        from src.domain.query import SearchResult
 
         r = SearchResult(id=1, path="test.md", content="content")
         assert r.id == 1
@@ -68,7 +68,7 @@ class TestSearchResult:
         assert r.rerank_score is None
 
     def test_with_all_fields(self):
-        from app.schemas.query import SearchResult
+        from src.domain.query import SearchResult
 
         r = SearchResult(id=2, path="doc.md", content="stuff", distance=0.3, score=0.7, score_type="hybrid", method="hybrid_0.5", rerank_score=0.9)
         assert r.score_type == "hybrid"
@@ -78,7 +78,7 @@ class TestSearchResult:
 
 class TestAnswer:
     def test_default_construction(self):
-        from app.schemas.response import Answer
+        from src.domain.response import Answer
 
         a = Answer(text="the answer")
         assert a.text == "the answer"
@@ -87,7 +87,7 @@ class TestAnswer:
         assert a.sources is None
 
     def test_with_all_fields(self):
-        from app.schemas.response import Answer
+        from src.domain.response import Answer
 
         a = Answer(text="answer", message_id=42, conversation_id=1, sources=[{"path": "test.md"}])
         assert a.message_id == 42
@@ -96,7 +96,7 @@ class TestAnswer:
 
 class TestEvaluationScores:
     def test_default_construction(self):
-        from app.schemas.response import EvaluationScores
+        from src.domain.response import EvaluationScores
 
         s = EvaluationScores(
             faithfulness_score=4, faithfulness_reasoning="good",

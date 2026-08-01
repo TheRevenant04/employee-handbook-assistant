@@ -6,10 +6,10 @@ import pytest
 
 
 class TestEmbedder:
-    @patch("app.embeddings.provider.ort.InferenceSession")
-    @patch("app.embeddings.provider.Tokenizer")
+    @patch("src.retrieval.embedder.ort.InferenceSession")
+    @patch("src.retrieval.embedder.Tokenizer")
     def test_init_loads_model_and_tokenizer(self, mock_tokenizer_cls, mock_session_cls):
-        from app.embeddings.provider import Embedder
+        from src.retrieval.embedder import Embedder
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -30,10 +30,10 @@ class TestEmbedder:
             providers=["CPUExecutionProvider"],
         )
 
-    @patch("app.embeddings.provider.ort.InferenceSession")
-    @patch("app.embeddings.provider.Tokenizer")
+    @patch("src.retrieval.embedder.ort.InferenceSession")
+    @patch("src.retrieval.embedder.Tokenizer")
     def test_encode_single_text(self, mock_tokenizer_cls, mock_session_cls):
-        from app.embeddings.provider import Embedder
+        from src.retrieval.embedder import Embedder
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -60,10 +60,10 @@ class TestEmbedder:
         norm = np.linalg.norm(result)
         assert abs(norm - 1.0) < 1e-5
 
-    @patch("app.embeddings.provider.ort.InferenceSession")
-    @patch("app.embeddings.provider.Tokenizer")
+    @patch("src.retrieval.embedder.ort.InferenceSession")
+    @patch("src.retrieval.embedder.Tokenizer")
     def test_encode_batch_multiple_texts(self, mock_tokenizer_cls, mock_session_cls):
-        from app.embeddings.provider import Embedder
+        from src.retrieval.embedder import Embedder
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -91,10 +91,10 @@ class TestEmbedder:
         for i in range(2):
             assert abs(np.linalg.norm(result[i]) - 1.0) < 1e-5
 
-    @patch("app.embeddings.provider.ort.InferenceSession")
-    @patch("app.embeddings.provider.Tokenizer")
+    @patch("src.retrieval.embedder.ort.InferenceSession")
+    @patch("src.retrieval.embedder.Tokenizer")
     def test_encode_without_normalization(self, mock_tokenizer_cls, mock_session_cls):
-        from app.embeddings.provider import Embedder
+        from src.retrieval.embedder import Embedder
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -118,10 +118,10 @@ class TestEmbedder:
         norm = np.linalg.norm(result)
         assert norm != 1.0 or np.allclose(result, result / norm)
 
-    @patch("app.embeddings.provider.ort.InferenceSession")
-    @patch("app.embeddings.provider.Tokenizer")
+    @patch("src.retrieval.embedder.ort.InferenceSession")
+    @patch("src.retrieval.embedder.Tokenizer")
     def test_encode_handles_attention_mask_pooling(self, mock_tokenizer_cls, mock_session_cls):
-        from app.embeddings.provider import Embedder
+        from src.retrieval.embedder import Embedder
 
         mock_session = MagicMock()
         inp_ids = MagicMock()

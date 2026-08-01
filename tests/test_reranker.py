@@ -5,10 +5,10 @@ import pytest
 
 
 class TestReranker:
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_init_loads_model(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker
+        from src.retrieval.reranker import Reranker
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -26,10 +26,10 @@ class TestReranker:
         reranker = Reranker(path="models/test-reranker")
         assert reranker.pad_id == 0
 
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_score_returns_float_list(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker
+        from src.retrieval.reranker import Reranker
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -59,10 +59,10 @@ class TestReranker:
         assert all(isinstance(s, float) for s in scores)
         assert scores[0] > scores[2] > scores[1]
 
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_score_empty_documents(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker
+        from src.retrieval.reranker import Reranker
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -80,10 +80,10 @@ class TestReranker:
         reranker = Reranker(path="models/test-reranker")
         assert reranker.score("query", []) == []
 
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_rerank_returns_sorted_by_score(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker
+        from src.retrieval.reranker import Reranker
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -114,10 +114,10 @@ class TestReranker:
         assert result[1]["id"] == 3
         assert result[0]["rerank_score"] > result[1]["rerank_score"]
 
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_rerank_preserves_original_fields(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker
+        from src.retrieval.reranker import Reranker
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -144,10 +144,10 @@ class TestReranker:
         assert result[0]["distance"] == 0.5
         assert "rerank_score" in result[0]
 
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_rerank_truncates_content(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker, MAX_CONTENT_CHARS
+        from src.retrieval.reranker import Reranker, MAX_CONTENT_CHARS
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -173,10 +173,10 @@ class TestReranker:
         args = mock_tokenizer.encode_batch.call_args[0][0]
         assert len(args[0][1]) <= MAX_CONTENT_CHARS
 
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_rerank_empty_documents(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker
+        from src.retrieval.reranker import Reranker
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -194,10 +194,10 @@ class TestReranker:
         reranker = Reranker(path="models/test-reranker")
         assert reranker.rerank("query", []) == []
 
-    @patch("app.retrieval.reranker.ort.InferenceSession")
-    @patch("app.retrieval.reranker.Tokenizer")
+    @patch("src.retrieval.reranker.ort.InferenceSession")
+    @patch("src.retrieval.reranker.Tokenizer")
     def test_sigmoid_when_enabled(self, mock_tokenizer_cls, mock_session_cls):
-        from app.retrieval.reranker import Reranker
+        from src.retrieval.reranker import Reranker
 
         mock_session = MagicMock()
         inp = MagicMock()
@@ -220,3 +220,4 @@ class TestReranker:
 
         assert all(0.0 <= s <= 1.0 for s in scores)
         assert scores[0] > scores[1]
+

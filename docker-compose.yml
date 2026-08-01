@@ -29,6 +29,7 @@ services:
         condition: service_healthy
 
 
+
   kestra_postgres:
     image: postgres:18
     volumes:
@@ -48,12 +49,15 @@ services:
     image: pgvector/pgvector:pg18
     volumes:
       - app_postgres_data:/var/lib/postgresql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./scripts/app_db_docker_entrypoint.sh:/docker-entrypoint-custom.sh:ro
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "7432:5432"
+    entrypoint: ["/docker-entrypoint-custom.sh"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 30s
@@ -125,6 +129,10 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GRAFANA_PG_HOST: ${GRAFANA_PG_HOST}
+      GRAFANA_PG_USER: ${GRAFANA_PG_USER}
+      GRAFANA_PG_PASSWORD: ${GRAFANA_PG_PASSWORD}
+      GRAFANA_DB_NAME: ${GRAFANA_DB_NAME}
     ports:
       - "3000:3000"
     depends_on:

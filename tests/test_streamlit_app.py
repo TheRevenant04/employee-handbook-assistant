@@ -5,12 +5,12 @@ import pytest
 
 class TestStreamlitApp:
     def _import_module(self):
-        with patch("app.ui.streamlit_app.st") as mock_st:
+        with patch("src.ui.streamlit_app.st") as mock_st:
             mock_st.session_state = MagicMock()
             mock_st.session_state.conversation_id = None
             mock_st.session_state.messages = []
             mock_st.session_state.assistant = MagicMock()
-            from app.ui.streamlit_app import (
+            from src.ui.streamlit_app import (
                 rate_message, ensure_conversation,
                 load_conversation_history,
             )
@@ -44,7 +44,7 @@ class TestStreamlitApp:
     def test_ensure_conversation_reuses_existing(self):
         _, ensure_conversation, _ = self._import_module()
 
-        with patch("app.ui.streamlit_app.st") as mock_st:
+        with patch("src.ui.streamlit_app.st") as mock_st:
             mock_st.session_state.conversation_id = 5
             assistant = MagicMock()
             result = ensure_conversation(assistant, "hello")
@@ -54,7 +54,7 @@ class TestStreamlitApp:
     def test_ensure_conversation_creates_new(self):
         _, ensure_conversation, _ = self._import_module()
 
-        with patch("app.ui.streamlit_app.st") as mock_st:
+        with patch("src.ui.streamlit_app.st") as mock_st:
             mock_st.session_state.conversation_id = None
             assistant = MagicMock()
             assistant.chat_store.create_conversation.return_value = 10
@@ -66,7 +66,7 @@ class TestStreamlitApp:
     def test_ensure_conversation_truncates_long_title(self):
         _, ensure_conversation, _ = self._import_module()
 
-        with patch("app.ui.streamlit_app.st") as mock_st:
+        with patch("src.ui.streamlit_app.st") as mock_st:
             mock_st.session_state.conversation_id = None
             assistant = MagicMock()
             long = "x" * 100
@@ -76,7 +76,7 @@ class TestStreamlitApp:
     def test_load_conversation_history_skips_without_id(self):
         _, _, load_conversation_history = self._import_module()
 
-        with patch("app.ui.streamlit_app.st") as mock_st:
+        with patch("src.ui.streamlit_app.st") as mock_st:
             mock_st.session_state.conversation_id = None
             mock_st.session_state.messages = []
             assistant = MagicMock()
@@ -86,9 +86,10 @@ class TestStreamlitApp:
     def test_load_conversation_history_skips_if_already_loaded(self):
         _, _, load_conversation_history = self._import_module()
 
-        with patch("app.ui.streamlit_app.st") as mock_st:
+        with patch("src.ui.streamlit_app.st") as mock_st:
             mock_st.session_state.conversation_id = 1
             mock_st.session_state.messages = [{"id": "existing"}]
             assistant = MagicMock()
             load_conversation_history(assistant)
             assistant.chat_store.get_messages.assert_not_called()
+
