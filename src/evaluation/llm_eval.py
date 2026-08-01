@@ -12,9 +12,9 @@ from psycopg import sql
 from tqdm.auto import tqdm
 
 from src.retrieval.vectorstore import get_connection
-from src.core.logging import configure_logging
+from src.utils.logging import configure_logging
 from src.domain.evaluation import EvaluationScores
-from src.core.retry import RateLimiter, is_transient_llm_error, load_ground_truth, retry_with_backoff
+from src.utils.retry import RateLimiter, is_transient_llm_error, load_ground_truth, retry_with_backoff
 
 configure_logging()
 logger = logging.getLogger(__name__)

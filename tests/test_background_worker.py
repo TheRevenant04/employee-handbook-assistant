@@ -6,9 +6,9 @@ import pytest
 
 
 class TestBackgroundWorker:
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_start_worker_creates_thread(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
 
         mock_get_connection.return_value.__enter__.return_value = MagicMock()
         worker = BackgroundWorker()
@@ -19,9 +19,9 @@ class TestBackgroundWorker:
         assert worker._worker_thread.is_alive()
         assert worker._worker_thread.daemon is True
 
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_submit_executes_task(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
 
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
@@ -41,9 +41,9 @@ class TestBackgroundWorker:
         assert result.get("executed") is True
         assert result.get("conn") is mock_conn
 
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_worker_reconnects_on_task_failure(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
         call_count = 0
         conns = []
 
@@ -76,9 +76,9 @@ class TestBackgroundWorker:
         assert len(conns) >= 2
         assert len(results) == 1
 
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_worker_handles_task_exception_gracefully(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
         mock_get_connection.return_value = mock_conn
@@ -101,9 +101,9 @@ class TestBackgroundWorker:
 
         assert results == ["ok"]
 
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_submit_passes_kwargs(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
         mock_conn = MagicMock()
         mock_conn.__enter__.return_value = mock_conn
         mock_get_connection.return_value = mock_conn
@@ -120,9 +120,9 @@ class TestBackgroundWorker:
 
         assert results["key"] == "custom"
 
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_worker_survives_reconnect_failure(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
         call_count = 0
 
         def make_conn():
@@ -158,9 +158,9 @@ class TestBackgroundWorker:
 
         assert results == [3]
 
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_worker_survives_initial_connect_failure(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
         call_count = 0
 
         def make_conn():
@@ -187,9 +187,9 @@ class TestBackgroundWorker:
 
         assert results == [3]
 
-    @patch("src.services.background_worker.get_connection")
+    @patch("src.utils.background_worker.get_connection")
     def test_worker_drains_queue_during_reconnect_backoff(self, mock_get_connection):
-        from src.services.background_worker import BackgroundWorker
+        from src.utils.background_worker import BackgroundWorker
         call_count = 0
 
         def make_conn():

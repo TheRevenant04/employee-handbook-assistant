@@ -6,7 +6,7 @@ from pathlib import Path
 from psycopg import sql
 
 from src.retrieval.vectorstore import get_connection
-from src.core.logging import configure_logging
+from src.utils.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)

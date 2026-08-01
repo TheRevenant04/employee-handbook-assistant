@@ -8,12 +8,12 @@ from queue import Full, Queue
 from typing import Any
 
 from openai import OpenAI
-from pydantic import BaseModel
 
+from src.domain.evaluation import EvaluationScores
+from src.domain.judge import JudgeResult
 from src.retrieval.vectorstore import get_connection
 from src.retrieval.filters import sanitize_for_llm
-from src.domain.evaluation import EvaluationScores
-from src.core.retry import RateLimiter, is_transient_llm_error, retry_with_backoff
+from src.utils.retry import RateLimiter, is_transient_llm_error, retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -61,13 +61,6 @@ Provide a brief reasoning for each score.
 
 
 _STOP_SENTINEL = object()
-
-
-class JudgeResult(BaseModel):
-    scores: EvaluationScores
-    input_tokens: int
-    output_tokens: int
-    cost: float
 
 
 class Evaluator:

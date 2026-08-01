@@ -5,7 +5,7 @@ import pytest
 
 class TestRateLimiter:
     def test_allows_within_rate(self):
-        from src.core.retry import RateLimiter
+        from src.utils.retry import RateLimiter
 
         limiter = RateLimiter(max_requests_per_minute=10)
         limiter.wait()
@@ -15,7 +15,7 @@ class TestRateLimiter:
         assert len(limiter.timestamps) == 3
 
     def test_blocks_over_rate(self):
-        from src.core.retry import RateLimiter
+        from src.utils.retry import RateLimiter
 
         limiter = RateLimiter(max_requests_per_minute=2)
         limiter.wait()
@@ -155,7 +155,8 @@ class TestEvaluator:
         assert result is None
 
     def test_store_result_inserts(self):
-        from src.evaluation.judge import Evaluator, JudgeResult, EvaluationScores
+        from src.evaluation.judge import Evaluator, EvaluationScores
+        from src.domain.judge import JudgeResult
 
         ev = Evaluator.__new__(Evaluator)
         ev._enabled = True

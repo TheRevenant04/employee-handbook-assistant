@@ -2,14 +2,14 @@ import os
 import json
 import logging
 import pandas as pd
-from pydantic import BaseModel
 from openai import OpenAI
 from psycopg import sql
 from tqdm.auto import tqdm
 
+from src.domain.dataset import Questions
 from src.retrieval.vectorstore import get_connection
-from src.core.logging import configure_logging
-from src.core.retry import RateLimiter, is_transient_llm_error, retry_with_backoff
+from src.utils.logging import configure_logging
+from src.utils.retry import RateLimiter, is_transient_llm_error, retry_with_backoff
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -19,10 +19,6 @@ NUM_QUESTIONS_PER_DOC: int = int(os.getenv("NUM_QUESTIONS_PER_DOC", "5"))
 MAX_REQUESTS_PER_MINUTE: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "10"))
 MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "5"))
 RETRY_BASE_DELAY: float = float(os.getenv("RETRY_BASE_DELAY", "10"))
-
-
-class Questions(BaseModel):
-    questions: list[str]
 
 
 DATA_GEN_INSTRUCTIONS = """
