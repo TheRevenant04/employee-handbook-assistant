@@ -8,7 +8,6 @@ from src.services.background_worker import BackgroundWorker
 
 logger = logging.getLogger(__name__)
 
-INGESTION_METRICS_TABLE = "ingestion_metrics"
 ERROR_LOG_TABLE = "error_log"
 
 
@@ -24,31 +23,6 @@ class MetricsCollector(BackgroundWorker):
             yield result
         finally:
             result["elapsed_ms"] = (time.perf_counter() - start) * 1000
-
-    def record_ingestion(self, num_documents, ingestion_latency_ms=None, model=None, success=True):
-        self._submit(
-            self._record_ingestion,
-            num_documents,
-            ingestion_latency_ms=ingestion_latency_ms,
-            model=model,
-            success=success,
-        )
-
-    def _record_ingestion(self, conn, num_documents, ingestion_latency_ms=None, model=None, success=True):
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    f"""
-                    INSERT INTO {INGESTION_METRICS_TABLE}
-                        (num_documents, ingestion_latency_ms, model, success)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (num_documents, ingestion_latency_ms, model, success),
-                )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            logger.error("Failed to record ingestion metric: %s", traceback.format_exc())
 
     def record_error(self, source, error_type, error_message, stack_trace=None):
         self._submit(

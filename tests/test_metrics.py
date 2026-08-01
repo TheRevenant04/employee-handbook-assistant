@@ -23,26 +23,6 @@ class TestMetricsCollector:
 
     @patch("src.evaluation.metrics.BackgroundWorker._start_worker")
     @patch("src.evaluation.metrics.get_connection")
-    def test_record_ingestion_submits_to_worker(self, mock_get_connection, mock_start):
-        from src.evaluation.metrics import MetricsCollector
-
-        mock_conn = MagicMock()
-        mock_conn.__enter__.return_value = mock_conn
-        mock_get_connection.return_value = mock_conn
-        collector = MetricsCollector()
-        collector._submit = MagicMock()
-
-        collector.record_ingestion(
-            num_documents=10,
-            ingestion_latency_ms=500.0,
-            model="test-model",
-            success=True,
-        )
-
-        collector._submit.assert_called_once()
-
-    @patch("src.evaluation.metrics.BackgroundWorker._start_worker")
-    @patch("src.evaluation.metrics.get_connection")
     def test_record_error_submits_to_worker(self, mock_get_connection, mock_start):
         from src.evaluation.metrics import MetricsCollector
 
@@ -60,29 +40,6 @@ class TestMetricsCollector:
         )
 
         collector._submit.assert_called_once()
-
-    @patch("src.evaluation.metrics.BackgroundWorker._start_worker")
-    @patch("src.evaluation.metrics.get_connection")
-    def test_record_ingestion_writes_to_db(self, mock_get_connection, mock_start):
-        from src.evaluation.metrics import MetricsCollector
-
-        mock_conn = MagicMock()
-        mock_conn.__enter__.return_value = mock_conn
-        mock_get_connection.return_value = mock_conn
-        collector = MetricsCollector()
-
-        collector._record_ingestion(
-            mock_conn,
-            num_documents=5,
-            ingestion_latency_ms=200.0,
-            model="test",
-            success=True,
-        )
-
-        cursor = mock_conn.cursor.return_value.__enter__.return_value
-        sql_str = str(cursor.execute.call_args[0][0])
-        assert "INSERT" in sql_str
-        mock_conn.commit.assert_called()
 
     @patch("src.evaluation.metrics.BackgroundWorker._start_worker")
     @patch("src.evaluation.metrics.get_connection")

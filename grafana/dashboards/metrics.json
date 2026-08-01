@@ -208,44 +208,6 @@
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
-      "id": 104,
-      "title": "Ingestion",
-      "type": "row"
-    },
-    {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }, "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 37 },
-      "id": 16,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "title": "Total Ingestion Runs",
-      "type": "stat",
-      "targets": [{ "rawSql": "SELECT COUNT(*) AS value FROM ingestion_metrics", "format": "table", "refId": "A" }]
-    },
-    {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }, "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 37 },
-      "id": 17,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "title": "Total Documents Ingested",
-      "type": "stat",
-      "targets": [{ "rawSql": "SELECT COALESCE(SUM(num_documents), 0) AS value FROM ingestion_metrics", "format": "table", "refId": "A" }]
-    },
-    {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5000 }, { "color": "red", "value": 15000 }] }, "unit": "ms" }, "overrides": [] },
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 37 },
-      "id": 18,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
-      "title": "Avg Ingestion Latency",
-      "type": "stat",
-      "targets": [{ "rawSql": "SELECT ROUND(AVG(ingestion_latency_ms)::numeric, 0) AS value FROM ingestion_metrics WHERE ingestion_latency_ms IS NOT NULL", "format": "table", "refId": "A" }]
-    },
-
-    {
-      "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
       "id": 105,
       "title": "Logs",
       "type": "row"

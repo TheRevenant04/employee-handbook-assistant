@@ -108,15 +108,7 @@ CREATE INDEX IF NOT EXISTS idx_eval_runs_created
     ON evaluation_runs (created_at DESC);
 
 
--- Monitoring: ingestion metrics and error log
-CREATE TABLE IF NOT EXISTS ingestion_metrics (
-    id BIGSERIAL PRIMARY KEY,
-    num_documents INT NOT NULL,
-    ingestion_latency_ms FLOAT,
-    model TEXT,
-    success BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- Monitoring: error log
 
 CREATE TABLE IF NOT EXISTS error_log (
     id BIGSERIAL PRIMARY KEY,
@@ -126,9 +118,6 @@ CREATE TABLE IF NOT EXISTS error_log (
     stack_trace TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE INDEX IF NOT EXISTS idx_ingestion_metrics_created
-    ON ingestion_metrics (created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_error_log_created
     ON error_log (created_at DESC);
