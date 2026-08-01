@@ -302,6 +302,9 @@ class RAG:
         if self.query_rewriter:
             rewritten_query = self.query_rewriter.rewrite(query)
 
+        message_id = None
+        error = None
+
         with self.metrics.timer() as total_timer:
             retrieval_latency_ms = None
             llm_latency_ms = None
@@ -341,6 +344,7 @@ class RAG:
 
             except Exception as e:
                 success = False
+                error = e
                 logger.exception("RAG query failed for conversation_id=%s", conversation_id)
                 self.metrics.record_error(
                     source="rag.query",
@@ -348,31 +352,35 @@ class RAG:
                     error_message=str(e),
                     stack_trace=traceback.format_exc(),
                 )
-                raise
-            finally:
-                try:
-                    message_id = self.chat_store.add_message(
-                        conversation_id=conversation_id,
-                        question=query,
-                        answer=answer,
-                    )
-                    self.chat_store.record_metrics(
-                        message_id=message_id,
-                        total_latency_ms=total_timer["elapsed_ms"],
-                        retrieval_latency_ms=retrieval_latency_ms,
-                        llm_latency_ms=llm_latency_ms,
-                        num_results=num_results_returned,
-                        avg_distance=avg_distance,
-                        min_distance=min_distance,
-                        model=self.model,
-                        success=success,
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        cost=cost,
-                    )
-                except Exception:
-                    logger.error("Failed to persist chat message: %s", traceback.format_exc())
-                    message_id = None
+
+        total_latency_ms = total_timer["elapsed_ms"]
+
+        try:
+            message_id = self.chat_store.add_message(
+                conversation_id=conversation_id,
+                question=query,
+                answer=answer,
+            )
+            self.chat_store.record_metrics(
+                message_id=message_id,
+                total_latency_ms=total_latency_ms,
+                retrieval_latency_ms=retrieval_latency_ms,
+                llm_latency_ms=llm_latency_ms,
+                num_results=num_results_returned,
+                avg_distance=avg_distance,
+                min_distance=min_distance,
+                model=self.model,
+                success=success,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost=cost,
+            )
+        except Exception:
+            logger.error("Failed to persist chat message: %s", traceback.format_exc())
+            message_id = None
+
+        if error is not None:
+            raise error
 
         if self.evaluator and message_id and success:
             self.evaluator.evaluate(
@@ -389,7 +397,7 @@ class RAG:
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "cost": cost,
-            "total_latency_ms": total_timer["elapsed_ms"],
+            "total_latency_ms": total_latency_ms,
             "retrieval_latency_ms": retrieval_latency_ms,
             "llm_latency_ms": llm_latency_ms,
             "num_results": num_results_returned,

@@ -158,6 +158,32 @@ class TestRAGIntegration:
         assert metrics_call["model"] is not None
 
     @patch("src.rag.answer_chain.get_connection")
+    def test_total_latency_recorded_after_timer_exits(self, mock_get_conn):
+        conn_cm, _ = _make_db_mock([
+            (1, "a.md", "content", 0.3),
+        ])
+        mock_get_conn.return_value = conn_cm
+
+        class RealisticTimer:
+            def __init__(self):
+                self.result = {"elapsed_ms": 0}
+
+            def __enter__(self):
+                return self.result
+
+            def __exit__(self, *args):
+                self.result["elapsed_ms"] = 150.0
+
+        mock_metrics = MagicMock()
+        mock_metrics.timer = RealisticTimer
+
+        rag, _, mock_chat_store, _ = self._make_rag(metrics=mock_metrics)
+        rag.rag("query", conversation_id=1)
+
+        metrics_call = mock_chat_store.record_metrics.call_args[1]
+        assert metrics_call["total_latency_ms"] == 150.0
+
+    @patch("src.rag.answer_chain.get_connection")
     def test_empty_search_results(self, mock_get_conn):
         conn_cm, _ = _make_db_mock([])
         mock_get_conn.return_value = conn_cm
