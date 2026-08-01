@@ -1,0 +1,476 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["rag", "postgres", "employee-handbook", "metrics"],
+  "templating": {
+    "list": [
+      {
+        "name": "model",
+        "type": "query",
+        "label": "Model",
+        "hide": 0,
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+        "definition": "SELECT DISTINCT model AS __text, model AS __value FROM message_metrics WHERE model IS NOT NULL ORDER BY 1",
+        "query": "SELECT DISTINCT model AS __text, model AS __value FROM message_metrics WHERE model IS NOT NULL ORDER BY 1",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Employee Handbook RAG Metrics",
+  "uid": "employee-handbook-rag",
+  "version": 1,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Messages",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS value FROM messages WHERE $__timeFilter(created_at);" }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 500 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Success Rate",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(100.0 * SUM(CASE WHEN mt.success THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0), 1), 0) AS value FROM message_metrics mt WHERE $__timeFilter(mt.created_at) AND mt.model IN (${model:sqlstring});" }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 95 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "P95 Total Latency",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(percentile_cont(0.95) WITHIN GROUP (ORDER BY total_latency_ms)::numeric, 0), 0) AS value FROM message_metrics WHERE $__timeFilter(created_at) AND model IN (${model:sqlstring});" }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1000 }, { "color": "red", "value": 3000 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Total Cost",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(SUM(cost)::numeric, 6), 0) AS value FROM message_metrics WHERE $__timeFilter(created_at) AND model IN (${model:sqlstring});" }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Rated Coverage",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(100.0 * COUNT(rating) / NULLIF(COUNT(*),0), 1), 0) AS value FROM messages WHERE $__timeFilter(created_at);" }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 25 }, { "color": "green", "value": 50 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Failed Requests",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS value FROM message_metrics WHERE $__timeFilter(created_at) AND NOT success AND model IN (${model:sqlstring});" }
+      ],
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "orientation": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }] }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "Traffic and Latency",
+      "type": "row"
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Messages Over Time",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), COUNT(*) AS value FROM messages WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1;" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Latency Breakdown",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), AVG(total_latency_ms) AS total FROM message_metrics WHERE $__timeFilter(created_at) AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" },
+        { "refId": "B", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), AVG(retrieval_latency_ms) AS retrieval FROM message_metrics WHERE $__timeFilter(created_at) AND retrieval_latency_ms IS NOT NULL AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" },
+        { "refId": "C", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), AVG(llm_latency_ms) AS llm FROM message_metrics WHERE $__timeFilter(created_at) AND llm_latency_ms IS NOT NULL AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Messages per Conversation",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(c.created_at, '1h'), COUNT(m.id) AS value FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id WHERE $__timeFilter(c.created_at) GROUP BY 1 ORDER BY 1;" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Retrieval Quality Signals",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), AVG(num_results) AS avg_results FROM message_metrics WHERE $__timeFilter(created_at) AND num_results IS NOT NULL AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" },
+        { "refId": "B", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), AVG(min_distance) AS avg_min_distance FROM message_metrics WHERE $__timeFilter(created_at) AND min_distance IS NOT NULL AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } }
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 102,
+      "title": "Cost and Quality",
+      "type": "row"
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Cost Over Time",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), SUM(cost) AS cost FROM message_metrics WHERE $__timeFilter(created_at) AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Token Usage",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), SUM(input_tokens) AS input_tokens FROM message_metrics WHERE $__timeFilter(created_at) AND input_tokens IS NOT NULL AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" },
+        { "refId": "B", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), SUM(output_tokens) AS output_tokens FROM message_metrics WHERE $__timeFilter(created_at) AND output_tokens IS NOT NULL AND model IN (${model:sqlstring}) GROUP BY 1 ORDER BY 1;" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 13,
+      "type": "piechart",
+      "title": "Rating Distribution",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 31 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT CASE WHEN rating = 1 THEN 'Thumbs Up' WHEN rating = -1 THEN 'Thumbs Down' END AS metric, COUNT(*) AS value FROM messages WHERE $__timeFilter(created_at) AND rating IS NOT NULL GROUP BY 1 ORDER BY 1;" }
+      ],
+      "options": { "pieType": "donut", "legend": { "displayMode": "list", "placement": "right", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" } }, "overrides": [] }
+    },
+    {
+      "id": 14,
+      "type": "gauge",
+      "title": "Approval Rate",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 31 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(100.0 * SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(rating),0), 1), 0) AS value FROM messages WHERE $__timeFilter(created_at) AND rating IS NOT NULL;" }
+      ],
+      "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 70 }, { "color": "green", "value": 85 }] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "Total Rated",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 31 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS value FROM messages WHERE $__timeFilter(created_at) AND rating IS NOT NULL;" }
+      ],
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 1 }] }
+        },
+        "overrides": []
+      }
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "id": 103,
+      "title": "Reliability and Logs",
+      "type": "row"
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Errors by Source",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(created_at, '5m'), source, COUNT(*) AS value FROM error_log WHERE $__timeFilter(created_at) GROUP BY 1, 2 ORDER BY 1;" }
+      ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Recent Errors",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT created_at, source, error_type, left(error_message, 180) AS error_message FROM error_log WHERE $__timeFilter(created_at) ORDER BY created_at DESC LIMIT 50;" }
+      ],
+      "options": { "showHeader": true, "cellHeight": "sm", "sortBy": [{ "displayName": "created_at", "desc": true }] },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false } },
+        "overrides": [{ "matcher": { "id": "byName", "options": "created_at" }, "properties": [{ "id": "unit", "value": "dateTimeFromNow" }, { "id": "custom.width", "value": 160 }] }]
+      }
+    },
+    {
+      "id": 18,
+      "type": "table",
+      "title": "Recent Queries",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 44 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT m.created_at, left(m.question, 100) AS question, left(COALESCE(m.answer,''), 140) AS answer, ROUND(mt.total_latency_ms::numeric, 0) AS total_ms, ROUND(mt.retrieval_latency_ms::numeric, 0) AS retrieval_ms, ROUND(mt.llm_latency_ms::numeric, 0) AS llm_ms, mt.input_tokens, mt.output_tokens, ROUND(mt.cost, 6) AS cost, mt.model, mt.success, m.rating FROM messages m LEFT JOIN message_metrics mt ON mt.message_id = m.id WHERE $__timeFilter(m.created_at) AND (mt.model IN (${model:sqlstring}) OR mt.model IS NULL) ORDER BY m.created_at DESC LIMIT 20;" }
+      ],
+      "options": { "showHeader": true, "cellHeight": "sm", "sortBy": [{ "displayName": "created_at", "desc": true }] },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false } }, "overrides": [] }
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 },
+      "id": 104,
+      "title": "LLM Evaluation",
+      "type": "row"
+    },
+    {
+      "id": 19,
+      "type": "gauge",
+      "title": "Avg Faithfulness",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 53 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(AVG(er.faithfulness_score)::numeric, 2), 0) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE $__timeFilter(erun.created_at);" }
+      ],
+      "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
+      "fieldConfig": {
+        "defaults": { "min": 1, "max": 5, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 3 }, { "color": "green", "value": 4 }] } },
+        "overrides": []
+      }
+    },
+    {
+      "id": 20,
+      "type": "gauge",
+      "title": "Avg Context Relevance",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 53 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(AVG(er.context_relevance_score)::numeric, 2), 0) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE $__timeFilter(erun.created_at);" }
+      ],
+      "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
+      "fieldConfig": {
+        "defaults": { "min": 1, "max": 5, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 3 }, { "color": "green", "value": 4 }] } },
+        "overrides": []
+      }
+    },
+    {
+      "id": 21,
+      "type": "gauge",
+      "title": "Avg Completeness",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 53 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT COALESCE(ROUND(AVG(er.completeness_score)::numeric, 2), 0) AS value FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id WHERE $__timeFilter(erun.created_at);" }
+      ],
+      "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto" },
+      "fieldConfig": {
+        "defaults": { "min": 1, "max": 5, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 3 }, { "color": "green", "value": 4 }] } },
+        "overrides": []
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Evaluation Scores Over Time",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 57 },
+      "targets": [
+        { "refId": "A", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(r.created_at, '1h'), AVG(er.faithfulness_score) AS faithfulness FROM evaluation_results er JOIN evaluation_runs r ON r.id = er.run_id WHERE $__timeFilter(r.created_at) GROUP BY 1 ORDER BY 1;" },
+        { "refId": "B", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(r.created_at, '1h'), AVG(er.context_relevance_score) AS context_relevance FROM evaluation_results er JOIN evaluation_runs r ON r.id = er.run_id WHERE $__timeFilter(r.created_at) GROUP BY 1 ORDER BY 1;" },
+        { "refId": "C", "format": "time_series", "rawSql": "SELECT $__timeGroupAlias(r.created_at, '1h'), AVG(er.completeness_score) AS completeness FROM evaluation_results er JOIN evaluation_runs r ON r.id = er.run_id WHERE $__timeFilter(r.created_at) GROUP BY 1 ORDER BY 1;" }
+      ],
+      "fieldConfig": { "defaults": { "min": 1, "max": 5 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 23,
+      "type": "table",
+      "title": "Worst Answers",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 57 },
+      "targets": [
+        { "refId": "A", "format": "table", "rawSql": "SELECT left(m.question, 80) AS question, left(m.answer, 120) AS answer, er.faithfulness_score, left(er.faithfulness_reasoning, 100) AS faithfulness_reasoning, er.context_relevance_score, left(er.context_relevance_reasoning, 100) AS context_relevance_reasoning, er.completeness_score, left(er.completeness_reasoning, 100) AS completeness_reasoning FROM evaluation_results er JOIN evaluation_runs erun ON erun.id = er.run_id JOIN messages m ON m.id = er.message_id WHERE $__timeFilter(erun.created_at) AND (er.faithfulness_score <= 2 OR er.completeness_score <= 2) ORDER BY er.faithfulness_score ASC, er.completeness_score ASC LIMIT 20;" }
+      ],
+      "options": { "showHeader": true, "cellHeight": "sm", "sortBy": [{ "displayName": "faithfulness_score", "desc": false }] },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 3 }, { "color": "green", "value": 4 }] } }, "overrides": [] }
+    }
+  ]
+}
