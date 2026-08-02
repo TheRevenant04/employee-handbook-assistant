@@ -1,10 +1,10 @@
 # Employee Handbook Assistant
 
-A **retrieval-augmented generation (RAG)** application that answers employees' questions about their organisation using only the official employee handbook as its source of truth.
+A **retrieval-augmented generation (RAG)** application that answers employee questions about their organisation using only the official employee handbook as its source of truth.
 
 The application retrieves the most relevant handbook sections, generates accurate, citation-backed answers, and declines to answer questions that aren't covered by the handbook instead of hallucinating information.
 
-The project is **generic** — it can be pointed at any organisation's handbook. In this project it is set up with the open-source [**Made Tech Handbook**](https://github.com/madetech/handbook) as its example datasource.
+The project is **generic** and can be configured with any organisation's handbook. For this implementation it is set up with the open-source [**Made Tech Handbook**](https://github.com/madetech/handbook) as its datasource.
 
 ## Table of contents
 
@@ -76,6 +76,7 @@ This project solves that with a **grounded Q&A assistant**:
 - **Chat persistence** — conversations, messages, ratings, and per-answer metrics are stored in PostgreSQL. (The current UI opens a new conversation per browser session; the persisted data is the foundation for a future conversation-history picker.)
 - **Observability** — latency, token usage, cost, and errors recorded for every message and surfaced in Grafana.
 - **Resilience** — retries with exponential backoff for DB connections and LLM calls, plus a per-minute rate limiter for eval workloads.
+- **Two ways to ingest** — run the ingestion directly from the CLI (`ingest`), or from the included **Kestra** workflow UI (scheduled/repeatable runs without shell access).
 
 ---
 
@@ -85,8 +86,11 @@ This project solves that with a **grounded Q&A assistant**:
 GitHub handbook (.md files)
         │
         ▼
-Ingestion pipeline ──► all-MiniLM-L6-v2 (ONNX) ──► pgvector (HNSW) + tsvector
-(src/ingestion/pipeline.py)                              │
+Ingestion: direct CLI (src/ingestion/pipeline.py)
+        └──► or Kestra flow (kestra/flows/ingest-employee-handbook.yml)
+             │
+             ▼
+        all-MiniLM-L6-v2 (ONNX) ──► pgvector (HNSW) + tsvector
                                                          ▼
 Employee question (Streamlit chat UI)                    │
         │                                                │
@@ -224,9 +228,9 @@ The app connects to any **OpenAI-compatible LLM API** (Gemini via its OpenAI-com
 
 ## Getting Started
 
-To get the project up and running, follow the [**Setup guide**](docs/setup.md). It covers everything you need beforehand — Python 3.13+, PostgreSQL with pgvector, and an OpenAI-compatible LLM endpoint — then walks you through configuring the environment, downloading the models, initialising the database, and starting the stack either locally or with Docker (app, pgvector, and Grafana).
+To get the project up and running, follow the [**Setup guide**](docs/setup.md). It covers everything you need beforehand — Python 3.13+, PostgreSQL with pgvector, and an OpenAI-compatible LLM endpoint — then walks you through configuring the environment, downloading the models, initialising the database, and starting the stack either locally or with Docker (app, pgvector, Grafana, and Kestra).
 
-Once it's running, the [**Usage guide**](docs/usage.md) explains the workflow: ingesting the handbook, generating ground truth, running evaluations, and chatting with the assistant in the UI — along with example inputs and outputs.
+Once it's running, the [**Usage guide**](docs/usage.md) explains the workflow: ingesting the handbook — either **directly** with the `ingest` command or **via the included Kestra flow** — then generating ground truth, running evaluations, and chatting with the assistant in the UI — along with example inputs and outputs.
 
 ---
 
@@ -260,6 +264,9 @@ Once it's running, the [**Usage guide**](docs/usage.md) explains the workflow: i
 │   └── init_database.py        # Create DB + run database/init.sql
 ├── database/init.sql           # Full schema (documents, chats, metrics, eval, errors)
 ├── grafana/                    # Provisioned dashboard + datasource
+├── kestra/
+│   ├── flows/ingest-employee-handbook.yml  # Kestra ingestion workflow
+│   └── scripts/ingest_handbook.py          # Embed + store (ONNX Runtime, one row per file)
 ├── docs/                       # Setup and usage guides (+ screenshots)
 ├── data/                       # Ground truth + evaluation outputs (gitignored)
 ├── models/                     # Downloaded ONNX models (gitignored)
@@ -289,4 +296,4 @@ All configuration is via environment variables (see [`.env.example`](.env.exampl
 
 ## Credits
 
-This project is demonstrated against the open-source [**Made Tech Handbook**](https://github.com/madetech/handbook), maintained by [Made Tech](https://www.madetech.com/). The handbook content used as sample data belongs to Made Tech and is fetched from their public repository under its own terms. Thanks to Made Tech for making it publicly available — it's a great resource for testing this assistant.
+This project is demonstrated against the open-source [**Made Tech Handbook**](https://github.com/madetech/handbook), maintained by [Made Tech](https://www.madetech.com/). The handbook content used as sample data belongs to Made Tech and is fetched from their public repository under its own terms. Thanks to Made Tech for making it publicly available.

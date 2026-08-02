@@ -12,10 +12,11 @@ This guide explains how to get the Employee Handbook Assistant running. There ar
 | You need installed | Python 3.13+, [uv](https://docs.astral.sh/uv/), PostgreSQL with pgvector | Docker + Docker Compose |
 | Database | You install/manage PostgreSQL + pgvector | Included (`pgvector/pgvector:pg18`) |
 | Grafana monitoring | Not included — set up yourself | Included, pre-provisioned |
+| Ingestion | Direct CLI (`ingest` command) | Direct CLI **or** Kestra workflow (included) |
 | Best for | Developers who want full control and minimal overhead | A fast, reproducible, full-stack run |
 
 **Choose Local if** you already have Python and PostgreSQL, want to inspect/tweak the code, or want to avoid Docker.
-**Choose Docker if** you want the whole stack — app, vector database, and Grafana dashboard — up with one command, and don't want to manage PostgreSQL yourself.
+**Choose Docker if** you want the whole stack — app, vector database, Grafana dashboard, and Kestra orchestration — up with one command, and don't want to manage PostgreSQL yourself.
 
 - Go to the **[Local setup](#3-local-setup)** → you need the *common requirements* in section 2, then section 3.
 - Go to the **[Docker setup](#4-docker-setup)** → you need the *common requirements* in section 2, then section 4.
@@ -147,7 +148,7 @@ See [`docs/usage.md`](usage.md) for the full command reference and workflow.
 
 ## 4. Docker setup
 
-Run the entire stack — app, vector database, and Grafana — in containers with one command.
+Run the entire stack — app, vector database, Grafana, and Kestra — in containers with one command.
 
 ### 4.1 Install Docker and clone the repo
 
@@ -181,11 +182,21 @@ POSTGRES_DB=employee_handbook
 POSTGRES_USER=user
 POSTGRES_PASSWORD=password
 
+# Base64 of POSTGRES_PASSWORD — the Kestra flow reads it via {{ secret('PGPASSWORD') }}
+SECRET_PGPASSWORD=cGFzc3dvcmQ=
+
 # Grafana datasource (must point at the *app* PostgreSQL)
 GRAFANA_PG_HOST=app_postgres:5432
 GRAFANA_PG_USER=user
 GRAFANA_PG_PASSWORD=password
 GRAFANA_DB_NAME=employee_handbook
+
+# Kestra orchestration — login for http://localhost:8082
+KESTRA_BASIC_AUTH_USERNAME=admin
+KESTRA_BASIC_AUTH_PASSWORD=changeme
+
+# Kestra AI assistant (optional; only used by the Kestra UI)
+GEMINI_API_KEY=
 ```
 
 ### 4.3 Start the stack
@@ -194,13 +205,15 @@ GRAFANA_DB_NAME=employee_handbook
 docker compose up -d
 ```
 
-First run builds the app image (which downloads the ONNX models); afterwards it just starts the three services:
+First run builds the app image (which downloads the ONNX models); afterwards it just starts the five services:
 
 | Service | Image | Port | Purpose |
 | --- | --- | --- | --- |
 | `app` | built from `Dockerfile` | `8501` | Streamlit chat UI |
 | `app_postgres` | `pgvector/pgvector:pg18` | `7432` | Vector store + app schema |
 | `grafana` | `grafana/grafana:11.2.2` | `3000` | Monitoring dashboard |
+| `kestra` | `kestra/kestra:v1.3.28` | `8082` | Workflow orchestration UI (runs the ingestion flow) |
+| `kestra_postgres` | `postgres:18` | — | Kestra's own metadata database |
 
 Two notes:
 
@@ -215,6 +228,33 @@ docker compose exec app python -m src.main ingest
 
 - **Chat UI** → http://localhost:8501
 - **Grafana** → http://localhost:3000 (log in with `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` from `.env`, defaults `admin` / `changeme`). It is pre-provisioned with a PostgreSQL datasource and the **Employee Handbook RAG Metrics** dashboard.
+- **Kestra** → http://localhost:8082 (log in with `KESTRA_BASIC_AUTH_USERNAME` / `KESTRA_BASIC_AUTH_PASSWORD`). Use it to run the ingestion flow — see [4.5 Kestra ingestion](#45-kestra-ingestion-optional).
+
+---
+
+### 4.5 Kestra ingestion (optional)
+
+Kestra is included so you can run ingestion from a UI instead of a shell. The flow and its script live in the repo:
+
+- `kestra/flows/ingest-employee-handbook.yml` — the workflow. It downloads the Python script, then runs it in a Docker container that joins the app network (`employee-handbook-assistant_appnet`) so it can reach `app_postgres`.
+- `kestra/scripts/ingest_handbook.py` — fetches the handbook from GitHub, embeds each file with ONNX Runtime (`light-embed`), and upserts it into `handbook_documents` (one row per file, no PyTorch, no API key).
+
+1. Open Kestra at http://localhost:8082 and log in with the `KESTRA_BASIC_AUTH_*` credentials from `.env`.
+2. Upload the flow from `kestra/flows/ingest-employee-handbook.yml` either way:
+   - **Script (recommended)** — from the repo root, run:
+     ```bash
+     bash scripts/upload_kestra_flows.sh
+     ```
+     Git Bash/WSL/Linux/macOS. It reads `KESTRA_BASIC_AUTH_*` and `KESTRA_URL` (default `http://localhost:8082`) from your `.env`, then POSTs every `kestra/flows/*.yml` to Kestra's `/api/v1/flows/import` endpoint, which creates or updates the flow. Optional flags:
+     ```bash
+     bash scripts/upload_kestra_flows.sh --file kestra/flows/ingest-employee-handbook.yml
+     bash scripts/upload_kestra_flows.sh --url http://localhost:8082 --username admin --password changeme
+     ```
+   - **Manually in the UI** — in Kestra at http://localhost:8082, open **Flows** → **Create** and paste the YAML into the editor or upload the file.
+3. No database configuration needed — `docker-compose.yml` passes the app database connection into the Kestra container as `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE` (exposed to flows as `{{ envs.pghost }}`, `{{ envs.pguser }}`, `{{ envs.pgdatabase }}`; names are lowercased under `envs.*` because `kestra.variables.env-vars-prefix` is set to `""`). The password is handled as a Kestra secret instead: set `SECRET_PGPASSWORD` (Base64 of `POSTGRES_PASSWORD`) in `.env`, and the flow resolves it via `{{ secret('PGPASSWORD') }}`. All `POSTGRES_*` values come from `.env` via compose variable interpolation.
+4. Click **Execute** (optionally override inputs such as `owner` / `repo` / `branch`).
+
+Both this flow and the direct `ingest` command store one row per handbook file, so you can switch between them freely. See [`docs/usage.md`](usage.md) for full details on the inputs.
 
 ---
 
@@ -317,6 +357,9 @@ All variables are optional unless marked **required**.
 | `GF_SECURITY_ADMIN_PASSWORD` | Grafana admin password | `changeme` |
 | `GRAFANA_PG_HOST` / `GRAFANA_PG_USER` / `GRAFANA_PG_PASSWORD` / `GRAFANA_DB_NAME` | Datasource connection for the dashboard | — |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Docker `app_postgres` bootstrap | — |
+| `SECRET_PGPASSWORD` | Base64 of `POSTGRES_PASSWORD`; the Kestra flow reads it via `{{ secret('PGPASSWORD') }}` | — |
+| `KESTRA_BASIC_AUTH_USERNAME` / `KESTRA_BASIC_AUTH_PASSWORD` | Kestra UI login | `admin` / `changeme` |
+| `GEMINI_API_KEY` | API key for the Kestra AI assistant (optional) | — |
 
 ### Advanced (read in code, not in `.env.example`)
 
@@ -347,6 +390,12 @@ The local path defaults to `5432`. If you're using the repo's Docker database, s
 
 **Keyword / hybrid search returns no results**
 The `content_tsv` column and its GIN index must exist. Run `scripts/init_database.py` (or restart `app_postgres`, which re-applies `init.sql`).
+
+**Kestra flow fails with `could not translate host name "app_postgres" to address`**
+The task container isn't joining the app network. Make sure the flow's `taskRunner` sets `networkMode: employee-handbook-assistant_appnet` (see `kestra/flows/ingest-employee-handbook.yml`) and that the stack was recreated with `docker compose up -d` after the network was added.
+
+**Kestra flow fails with `ON CONFLICT DO UPDATE command cannot affect row a second time`**
+The table stores one row per handbook file (`path` is unique). Use the checked-in `kestra/scripts/ingest_handbook.py`, which embeds whole files — don't chunk into multiple rows per file.
 
 **Changing the vector dimension**
 `VECTOR_DIM` must match the embedding model (384 for `all-MiniLM-L6-v2`). Changing it requires recreating the `handbook_documents` table and re-ingesting.

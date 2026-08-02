@@ -1,0 +1,65 @@
+id: ingest-handbook
+namespace: employee.handbook
+description: Download Python script from public GitHub repo and run it to fetch Markdown, embed with ONNX Runtime, and store in PostgreSQL
+
+inputs:
+  - id: owner
+    type: STRING
+    defaults: "madetech"
+    description: "GitHub repository owner (handbook)"
+
+  - id: repo
+    type: STRING
+    defaults: "handbook"
+    description: "GitHub repository name (handbook)"
+
+  - id: branch
+    type: STRING
+    defaults: "main"
+    description: "Branch or ref to fetch"
+
+  - id: embeddingModel
+    type: SELECT
+    defaults: "onnx-models/all-MiniLM-L6-v2-onnx"
+    values:
+      - onnx-models/all-MiniLM-L6-v2-onnx
+    description: "ONNX embedding model (lightweight, no PyTorch)"
+
+  - id: modelCacheDir
+    type: STRING
+    defaults: "/tmp/kestra"
+    description: "Directory to cache the embedding model (default: /tmp/kestra)"
+
+  - id: scriptUrl
+    type: STRING
+    defaults: "https://raw.githubusercontent.com/TheRevenant04/employee-handbook-assistant/refs/heads/main/kestra/scripts/ingest_handbook.py"
+    description: "Raw GitHub URL to download the Python script (public repo, no auth needed)"
+
+tasks:
+  # 1. Download the Python script from GitHub (public raw URL)
+  - id: download_script
+    type: io.kestra.plugin.core.http.Download
+    uri: "{{ inputs.scriptUrl }}"
+
+  # 2. Execute Python script with downloaded file
+  - id: process_and_embed
+    type: io.kestra.plugin.scripts.python.Commands
+    taskRunner:
+        type: io.kestra.plugin.scripts.runner.docker.Docker
+        networkMode: employee-handbook-assistant_appnet
+    commands:
+      - python ingest_handbook.py
+    env:
+      EMBEDDING_MODEL: "{{ inputs.embeddingModel }}"
+      MODEL_CACHE_DIR: "{{ inputs.modelCacheDir }}"
+      POSTGRES_HOST: "{{ envs.pghost }}"
+      POSTGRES_USER: "{{ envs.pguser }}"
+      POSTGRES_PASSWORD: "{{ secret('PGPASSWORD') }}"
+      POSTGRES_DB: "{{ envs.pgdatabase }}"
+      GITHUB_OWNER: "{{ inputs.owner }}"
+      GITHUB_REPO: "{{ inputs.repo }}"
+      GITHUB_BRANCH: "{{ inputs.branch }}"
+    inputFiles:
+      ingest_handbook.py: "{{ outputs.download_script.uri }}"
+    beforeCommands:
+      - pip install light-embed psycopg2-binary requests onnxruntime

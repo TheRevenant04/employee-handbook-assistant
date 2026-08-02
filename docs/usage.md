@@ -141,7 +141,18 @@ For every message, the system stores (in `message_metrics`):
 
 ---
 
-## 4. Ingestion (`ingest`)
+## 4. Ingestion (two options)
+
+There are **two ways to fill the vector store** — pick whichever fits how you work:
+
+| Option | When to use it |
+| --- | --- |
+| **Direct CLI** (`ingest`) | Local setup, or a quick one-off run from the Docker stack |
+| **Kestra flow** | Docker setup — run and repeat ingestion from a UI, no shell access needed |
+
+Both approaches store **one row per handbook file** (upserted on `path`), so they are interchangeable and re-running either one is safe.
+
+### Option 1 — Direct (`ingest`)
 
 Reads `GITHUB_OWNER/GITHUB_REPO/GITHUB_BRANCH`, lists every `.md` file in the repo tree, downloads each, embeds the content with `all-MiniLM-L6-v2`, and inserts rows into `TABLE_NAME` (upsert on `path`).
 
@@ -166,6 +177,30 @@ Use a different handbook without touching code:
 $env:GITHUB_OWNER="your-org"; $env:GITHUB_REPO="your-handbook"; $env:GITHUB_BRANCH="main"
 uv run python -m src.main ingest
 ```
+
+### Option 2 — Kestra flow
+
+If you run the **Docker** stack, Kestra is included (see [`docs/setup.md`](setup.md)). It runs the same ingestion from a workflow UI, so you never need a terminal to ingest.
+
+- **UI:** http://localhost:8082 (login with `KESTRA_BASIC_AUTH_USERNAME` / `KESTRA_BASIC_AUTH_PASSWORD` from `.env`)
+- **Flow source:** [`kestra/flows/ingest-employee-handbook.yml`](../kestra/flows/ingest-employee-handbook.yml)
+- **Script:** [`kestra/scripts/ingest_handbook.py`](../kestra/scripts/ingest_handbook.py) — downloaded at runtime from its raw GitHub URL, so the flow always runs the version committed to the repo
+
+**How it works.** The flow has two tasks:
+
+1. `download_script` — downloads `ingest_handbook.py` from `inputs.scriptUrl`.
+2. `process_and_embed` — runs the script in a Docker container that joins the app network (`employee-handbook-assistant_appnet`), fetches the handbook from GitHub, embeds each file with ONNX Runtime (`light-embed`), and upserts it into `handbook_documents`.
+
+**Run it.** In the Kestra UI, create a flow from the YAML above (paste it into the editor or upload the file), then click **Execute**. The flow takes these inputs:
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `owner` / `repo` / `branch` | `madetech` / `handbook` / `main` | Handbook source |
+| `embeddingModel` | `onnx-models/all-MiniLM-L6-v2-onnx` | ONNX embedder (no PyTorch, no API key) |
+| `modelCacheDir` | `/tmp/kestra` | Directory to cache the embedding model |
+| `scriptUrl` | raw GitHub URL of `kestra/scripts/ingest_handbook.py` | Script to download and run |
+
+**Database connection.** The flow reads the app database connection from `docker-compose.yml`, which passes `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE` into the Kestra container (exposed to flows as `{{ envs.pghost }}`, `{{ envs.pguser }}`, `{{ envs.pgdatabase }}` via `kestra.variables.env-vars-prefix: ""`, which strips no prefix and lowercases names). The password uses Kestra's secret mechanism instead: `{{ secret('PGPASSWORD') }}` resolves the Base64-encoded `SECRET_PGPASSWORD` env var from `.env`, keeping it out of the flow definition and masking it in Kestra logs. No setup in the Kestra **Environments** page is needed.
 
 ---
 
