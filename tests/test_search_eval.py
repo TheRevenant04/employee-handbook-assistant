@@ -197,7 +197,7 @@ class TestSearchEvaluator:
         mock_cursor.fetchall.return_value = [(1, "doc.md", "content", 0.3)]
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_conn.return_value.__enter__.return_value = mock_conn
 
         results = evaluator.vector_search("test query")
         assert len(results) == 1
@@ -223,7 +223,7 @@ class TestSearchEvaluator:
         mock_cursor.fetchall.return_value = [(2, "doc.md", "content", 0.8)]
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_conn.return_value.__enter__.return_value = mock_conn
 
         results = evaluator.keyword_search("test query")
         assert len(results) == 1

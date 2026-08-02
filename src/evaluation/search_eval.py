@@ -60,8 +60,7 @@ class SearchEvaluator:
     def vector_search(self, query_text: str, num_results: int = NUM_RESULTS) -> list[dict[str, Any]]:
         query_vector = self.get_query_embedding(query_text)
 
-        conn = get_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL(
@@ -87,12 +86,8 @@ class SearchEvaluator:
                 }
                 for row in rows
             ]
-        finally:
-            conn.close()
-
     def keyword_search(self, query_text: str, num_results: int = NUM_RESULTS) -> list[dict[str, Any]]:
-        conn = get_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL(
@@ -120,8 +115,6 @@ class SearchEvaluator:
                 }
                 for row in rows
             ]
-        finally:
-            conn.close()
 
     def hybrid_search(
         self,
@@ -132,8 +125,7 @@ class SearchEvaluator:
         query_vector = self.get_query_embedding(query_text)
         fetch_k = max(num_results * 3, 10)
 
-        conn = get_connection()
-        try:
+        with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL(
@@ -194,8 +186,6 @@ class SearchEvaluator:
                 }
                 for row in rows
             ]
-        finally:
-            conn.close()
 
     def rerank_search(
         self,
