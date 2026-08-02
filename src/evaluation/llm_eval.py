@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 from src.retrieval.vectorstore import get_connection
 from src.utils.logging import configure_logging
 from src.domain.evaluation import EvaluationScores
+from src.domain.judge import JudgeResult
 from src.utils.retry import RateLimiter, is_transient_llm_error, load_ground_truth, retry_with_backoff
 
 configure_logging()
@@ -27,6 +28,8 @@ OUTPUT_DIR: Path = Path(os.getenv("EVAL_OUTPUT_DIR", "data/evaluation"))
 JUDGE_BASE_URL: str | None = os.getenv("JUDGE_BASE_URL")
 JUDGE_MODEL: str | None = os.getenv("JUDGE_MODEL")
 JUDGE_API_KEY: str | None = os.getenv("JUDGE_API_KEY")
+JUDGE_COST_PER_INPUT_TOKEN: float = float(os.getenv("JUDGE_COST_PER_INPUT_TOKEN", "0"))
+JUDGE_COST_PER_OUTPUT_TOKEN: float = float(os.getenv("JUDGE_COST_PER_OUTPUT_TOKEN", "0"))
 
 MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "1"))
 MAX_JUDGE_RPM: int = int(os.getenv("MAX_JUDGE_RPM", "10"))
@@ -67,8 +70,7 @@ Provide a brief reasoning for each score.
 
 
 def get_document_content(doc_path: str) -> str | None:
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL(
@@ -78,8 +80,6 @@ def get_document_content(doc_path: str) -> str | None:
             )
             row = cur.fetchone()
         return row[0] if row else None
-    finally:
-        conn.close()
 
 
 def judge_answer(
@@ -89,7 +89,7 @@ def judge_answer(
     retrieved_context: str,
     expected_document_content: str,
     limiter: RateLimiter,
-) -> EvaluationScores | None:
+) -> JudgeResult | None:
     user_prompt = (
         f"QUESTION:\n{question}\n\n"
         f"ANSWER:\n{answer}\n\n"
@@ -102,7 +102,7 @@ def judge_answer(
         {"role": "user", "content": user_prompt},
     ]
 
-    def _call() -> EvaluationScores:
+    def _call() -> JudgeResult | None:
         limiter.wait()
         response = client.beta.chat.completions.parse(
             model=JUDGE_MODEL,
@@ -112,7 +112,18 @@ def judge_answer(
         result = response.choices[0].message.parsed
         if result is None:
             logger.warning("Failed to parse judge response for question: %s", question[:80])
-        return result
+            return None
+
+        usage = response.usage
+        input_tokens = getattr(usage, "prompt_tokens", 0) if usage else 0
+        output_tokens = getattr(usage, "completion_tokens", 0) if usage else 0
+        cost = input_tokens * JUDGE_COST_PER_INPUT_TOKEN + output_tokens * JUDGE_COST_PER_OUTPUT_TOKEN
+        return JudgeResult(
+            scores=result,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost=cost,
+        )
 
     try:
         return retry_with_backoff(
@@ -133,8 +144,7 @@ def store_run(
     num_questions: int,
     config: dict[str, Any],
 ) -> int:
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL(
@@ -148,10 +158,7 @@ def store_run(
                 (judge_model, evaluated_model, num_questions, json.dumps(config)),
             )
             run_id = cur.fetchone()[0]
-        conn.commit()
         return run_id
-    finally:
-        conn.close()
 
 
 def store_result(
@@ -159,10 +166,10 @@ def store_result(
     message_id: int,
     expected_document: str,
     retrieved_context: str | None,
-    scores: EvaluationScores,
+    judge_result: JudgeResult,
 ):
-    conn = get_connection()
-    try:
+    scores = judge_result.scores
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL(
@@ -171,8 +178,9 @@ def store_result(
                         (run_id, message_id, expected_document, retrieved_context,
                          faithfulness_score, faithfulness_reasoning,
                          context_relevance_score, context_relevance_reasoning,
-                         completeness_score, completeness_reasoning)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                         completeness_score, completeness_reasoning,
+                         judge_input_tokens, judge_output_tokens, judge_cost)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """
                 ),
                 (
@@ -186,11 +194,11 @@ def store_result(
                     scores.context_relevance_reasoning,
                     scores.completeness_score,
                     scores.completeness_reasoning,
+                    judge_result.input_tokens,
+                    judge_result.output_tokens,
+                    judge_result.cost,
                 ),
             )
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def evaluate_question(
@@ -227,16 +235,17 @@ def evaluate_question(
         logger.warning("No message_id returned for question: %s", question[:80])
         return None
 
-    scores = judge_answer(judge_client, question, answer, retrieved_context, expected_doc_content, limiter)
-    if scores is None:
+    judge_result = judge_answer(judge_client, question, answer, retrieved_context, expected_doc_content, limiter)
+    if judge_result is None:
         return None
 
+    scores = judge_result.scores
     store_result(
         run_id=run_id,
         message_id=message_id,
         expected_document=expected_doc,
         retrieved_context=retrieved_context,
-        scores=scores,
+        judge_result=judge_result,
     )
 
     return {
@@ -249,6 +258,9 @@ def evaluate_question(
         "context_relevance_reasoning": scores.context_relevance_reasoning,
         "completeness_score": scores.completeness_score,
         "completeness_reasoning": scores.completeness_reasoning,
+        "judge_input_tokens": judge_result.input_tokens,
+        "judge_output_tokens": judge_result.output_tokens,
+        "judge_cost": judge_result.cost,
     }
 
 

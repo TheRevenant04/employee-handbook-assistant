@@ -32,8 +32,7 @@ Not too formal, not too short, not too long.
 
 
 def load_documents():
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 sql.SQL(
@@ -42,8 +41,6 @@ def load_documents():
             )
             rows = cur.fetchall()
         return [{"path": row[0], "content": row[1]} for row in rows]
-    finally:
-        conn.close()
 
 
 def generate_questions_for_doc(client, doc):

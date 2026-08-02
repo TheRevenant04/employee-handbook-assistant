@@ -297,6 +297,174 @@ class RAG:
             logger_name=__name__,
         )
 
+    def llm_stream(self, prompt, usage_holder=None):
+        """Stream the LLM completion token by token.
+
+        Yields text chunks. Token/cost totals are written into ``usage_holder``
+        (a dict) once the stream completes. No retry loop: restarting a stream
+        mid-response would replay tokens the user already saw.
+        """
+        try:
+            response = self.llm_client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.instructions},
+                    {"role": "user", "content": prompt},
+                ],
+                stream=True,
+                stream_options={"include_usage": True},
+            )
+        except Exception:
+            logger.warning("Streaming with usage failed; retrying without stream_options", exc_info=True)
+            response = self.llm_client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.instructions},
+                    {"role": "user", "content": prompt},
+                ],
+                stream=True,
+            )
+
+        input_tokens = 0
+        output_tokens = 0
+        for chunk in response:
+            usage = getattr(chunk, "usage", None)
+            if usage is not None:
+                input_tokens = getattr(usage, "prompt_tokens", 0) or 0
+                output_tokens = getattr(usage, "completion_tokens", 0) or 0
+            choices = getattr(chunk, "choices", None)
+            if choices:
+                delta = getattr(choices[0], "delta", None)
+                content = getattr(delta, "content", None)
+                if content:
+                    yield content
+
+        if usage_holder is not None:
+            usage_holder["input_tokens"] = input_tokens
+            usage_holder["output_tokens"] = output_tokens
+            usage_holder["cost"] = (
+                input_tokens * self.cost_per_input_token
+                + output_tokens * self.cost_per_output_token
+            )
+
+    def rag_stream(self, query, conversation_id, num_results=5, result_holder=None):
+        """Streaming variant of :meth:`rag`.
+
+        Yields answer text as it is generated and persists the message +
+        metrics once the stream finishes. Since generators cannot return
+        values, the final result (message id, latencies, tokens, ...) is
+        written into ``result_holder`` (a dict) if provided.
+        """
+        rewritten_query = query
+        if self.query_rewriter:
+            rewritten_query = self.query_rewriter.rewrite(query)
+
+        message_id = None
+        error = None
+        retrieval_latency_ms = None
+        llm_latency_ms = None
+        num_results_returned = None
+        avg_distance = None
+        min_distance = None
+        input_tokens = 0
+        output_tokens = 0
+        cost = 0.0
+        answer = ""
+        retrieved_context = ""
+        success = True
+
+        with self.metrics.timer() as total_timer:
+            try:
+                with self.metrics.timer() as search_timer:
+                    search_results = self.search(rewritten_query, num_results=num_results)
+                retrieval_latency_ms = search_timer["elapsed_ms"]
+
+                retrieved_context = self.build_context(search_results)
+
+                num_results_returned = len(search_results)
+                if search_results:
+                    distances = [r["distance"] for r in search_results]
+                    avg_distance = sum(distances) / len(distances)
+                    min_distance = min(distances)
+
+                prompt = self.build_prompt(query, search_results)
+
+                usage_holder = {}
+                with self.metrics.timer() as llm_timer:
+                    for text_chunk in self.llm_stream(prompt, usage_holder=usage_holder):
+                        answer += text_chunk
+                        yield text_chunk
+                llm_latency_ms = llm_timer["elapsed_ms"]
+                input_tokens = usage_holder.get("input_tokens", 0)
+                output_tokens = usage_holder.get("output_tokens", 0)
+                cost = usage_holder.get("cost", 0.0)
+
+            except Exception as e:
+                success = False
+                error = e
+                answer = ""
+                logger.exception("RAG query failed for conversation_id=%s", conversation_id)
+                self.metrics.record_error(
+                    source="rag.query_stream",
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    stack_trace=traceback.format_exc(),
+                )
+
+        total_latency_ms = total_timer["elapsed_ms"]
+
+        try:
+            message_id = self.chat_store.add_message(
+                conversation_id=conversation_id,
+                question=query,
+                answer=answer,
+            )
+            self.chat_store.record_metrics(
+                message_id=message_id,
+                total_latency_ms=total_latency_ms,
+                retrieval_latency_ms=retrieval_latency_ms,
+                llm_latency_ms=llm_latency_ms,
+                num_results=num_results_returned,
+                avg_distance=avg_distance,
+                min_distance=min_distance,
+                model=self.model,
+                success=success,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost=cost,
+            )
+        except Exception:
+            logger.error("Failed to persist chat message: %s", traceback.format_exc())
+            message_id = None
+
+        if error is not None:
+            raise error
+
+        if self.evaluator and message_id and success:
+            self.evaluator.evaluate(
+                message_id=message_id,
+                question=query,
+                answer=answer,
+                retrieved_context=retrieved_context,
+            )
+
+        if result_holder is not None:
+            result_holder.update(
+                {
+                    "id": message_id,
+                    "answer": answer,
+                    "query": query,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cost": cost,
+                    "total_latency_ms": total_latency_ms,
+                    "retrieval_latency_ms": retrieval_latency_ms,
+                    "llm_latency_ms": llm_latency_ms,
+                    "num_results": num_results_returned,
+                    "model": self.model,
+                }
+            )
+
     def rag(self, query, conversation_id, num_results=5):
         rewritten_query = query
         if self.query_rewriter:

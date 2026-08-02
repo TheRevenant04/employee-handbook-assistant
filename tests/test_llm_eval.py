@@ -9,6 +9,7 @@ class TestJudgeAnswer:
         mock_retry.side_effect = lambda fn, **kw: fn()
 
         from src.evaluation.llm_eval import judge_answer
+        import src.evaluation.llm_eval as llm_eval
 
         from src.domain.evaluation import EvaluationScores
         mock_scores = EvaluationScores(
@@ -18,14 +19,23 @@ class TestJudgeAnswer:
         )
 
         client = MagicMock()
-        client.beta.chat.completions.parse.return_value.choices[0].message.parsed = mock_scores
+        response = client.beta.chat.completions.parse.return_value
+        response.choices[0].message.parsed = mock_scores
+        response.usage.prompt_tokens = 100
+        response.usage.completion_tokens = 50
         limiter = MagicMock()
 
         result = judge_answer(client, "question", "answer", "context", "expected doc", limiter)
 
         assert result is not None
-        assert result.faithfulness_score == 4
-        assert result.completeness_score == 5
+        assert result.scores.faithfulness_score == 4
+        assert result.scores.completeness_score == 5
+        assert result.input_tokens == 100
+        assert result.output_tokens == 50
+        assert result.cost == (
+            100 * llm_eval.JUDGE_COST_PER_INPUT_TOKEN
+            + 50 * llm_eval.JUDGE_COST_PER_OUTPUT_TOKEN
+        )
         limiter.wait.assert_called_once()
 
     @patch("src.evaluation.llm_eval.retry_with_backoff")
@@ -63,7 +73,7 @@ class TestGetDocumentContent:
         mock_cursor.fetchone.return_value = ("content here",)
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_conn.return_value.__enter__.return_value = mock_conn
 
         result = get_document_content("doc.md")
         assert result == "content here"
@@ -76,7 +86,7 @@ class TestGetDocumentContent:
         mock_cursor.fetchone.return_value = None
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_conn.return_value.__enter__.return_value = mock_conn
 
         result = get_document_content("missing.md")
         assert result is None
@@ -91,11 +101,11 @@ class TestStoreRun:
         mock_cursor.fetchone.return_value = (42,)
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_conn.return_value.__enter__.return_value = mock_conn
 
         run_id = store_run("judge-v1", "model-v1", 10, {"key": "val"})
         assert run_id == 42
-        mock_conn.commit.assert_called_once()
+        mock_get_conn.assert_called_once_with()
 
 
 class TestStoreResult:
@@ -103,20 +113,22 @@ class TestStoreResult:
     def test_stores_result(self, mock_get_conn):
         from src.evaluation.llm_eval import store_result
         from src.domain.evaluation import EvaluationScores
+        from src.domain.judge import JudgeResult
 
         scores = EvaluationScores(
             faithfulness_score=5, faithfulness_reasoning="perfect",
             context_relevance_score=4, context_relevance_reasoning="good",
             completeness_score=3, completeness_reasoning="ok",
         )
+        judge_result = JudgeResult(scores=scores, input_tokens=100, output_tokens=50, cost=1.5)
 
         mock_cursor = MagicMock()
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_conn.return_value.__enter__.return_value = mock_conn
 
-        store_result(1, 100, "doc.md", "context", scores)
-        mock_conn.commit.assert_called_once()
+        store_result(1, 100, "doc.md", "context", judge_result)
+        mock_get_conn.assert_called_once_with()
 
 
 class TestEvaluateQuestion:
@@ -126,6 +138,7 @@ class TestEvaluateQuestion:
     def test_evaluate_question_success(self, mock_store, mock_judge, mock_get_doc):
         from src.evaluation.llm_eval import evaluate_question
         from src.domain.evaluation import EvaluationScores
+        from src.domain.judge import JudgeResult
 
         mock_get_doc.return_value = "expected content"
         mock_scores = EvaluationScores(
@@ -133,7 +146,7 @@ class TestEvaluateQuestion:
             context_relevance_score=3, context_relevance_reasoning="o",
             completeness_score=5, completeness_reasoning="d",
         )
-        mock_judge.return_value = mock_scores
+        mock_judge.return_value = JudgeResult(scores=mock_scores, input_tokens=100, output_tokens=50, cost=1.5)
 
         assistant = MagicMock()
         assistant.search.return_value = [{"content": "ctx1"}, {"content": "ctx2"}]
@@ -151,6 +164,9 @@ class TestEvaluateQuestion:
         assert result["question"] == "q?"
         assert result["answer"] == "the answer"
         assert result["faithfulness_score"] == 4
+        assert result["judge_input_tokens"] == 100
+        assert result["judge_output_tokens"] == 50
+        assert result["judge_cost"] == 1.5
         mock_store.assert_called_once()
 
     @patch("src.evaluation.llm_eval.get_document_content")

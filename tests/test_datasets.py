@@ -45,7 +45,7 @@ class TestLoadDocuments:
         mock_cursor = MagicMock()
         mock_cursor.fetchall.return_value = [("path1.md", "content1"), ("path2.md", "content2")]
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_conn.return_value.__enter__.return_value = mock_conn
 
         result = load_documents()
         assert len(result) == 2

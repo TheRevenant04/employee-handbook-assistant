@@ -1,0 +1,75 @@
+question,answer,expected_document,faithfulness_score,faithfulness_reasoning,correctness_score,correctness_reasoning
+How many days of paid annual leave am I entitled to take?,"All team members are entitled to 38 days of leave between June and May, which is inclusive of public and bank holidays. For part-time colleagues, this amount is pro-rated. 
+
+This information can be found in the ""Taking Holiday"" section of the employee handbook.",README.md,1,"The answer claims there are 38 days of annual leave, but the source document explicitly states they offer 30 days of paid annual leave.",1,The answer provides incorrect information regarding the number of annual leave days based on the source document provided.
+Is there a budget available to help me purchase extra equipment for my home office?,"Yes, you have a £250 **Work Ready allowance** available to help you purchase essential equipment for your home office.
+
+Key details regarding this budget include:
+
+*   **Purpose:** It is intended for essential work-related equipment, such as visual/tech (monitors, laptop stands), peripherals (keyboards, mice, webcams), ergonomics (chairs, standing desks), and audio/power equipment.
+*   **Prerequisites:** You must complete your DSE (Display Screen Equipment) training and assessment via iHASCO before utilizing the budget.
+*   **Ineligible items:** The budget cannot be used for household, lifestyle, or comfort items (e.g., furniture like sofas, decor, or food/drink).
+*   **How to purchase:** 
+    *   **Happl Card:** Purchase directly via the Made Benefits platform using the virtual card on the Work Ready Budget page.
+    *   **Personal card:** If you use your own card, you must submit the expense via Xero. 
+    *   **Note:** If you are unsure if an item is eligible, you must contact the Business Operations team via ""Ask Made Tech"" for pre-approval to avoid having your expense declined.
+
+You can find more detailed information in the **Work Ready** section of the employee handbook.",README.md,1,"The source document only mentions that Made Tech provides a 'Work Ready' budget for equipment, but it does not specify the £250 amount, the requirement for iHASCO training, the specific purchase methods, or the ineligible items listed in the answer. The answer relies on external information not found in the provided source text.",2,"While the answer correctly identifies that a 'Work Ready' budget exists, the detailed instructions and specific policy constraints provided in the answer are not verified by the source document, rendering it potentially inaccurate or misleading for the user based solely on the provided text."
+How often does the company conduct salary reviews for employees?,"According to the ""Salary Reviews"" section of the handbook, salaries are reviewed once each business financial year. 
+
+Additionally, salary adjustments may occur outside of this cycle through the internal mobility process (promotions or lateral moves) within the financial year.",README.md,3,"The source document confirms that salary reviews occur 'once a year'. However, it does not explicitly state that this is 'once each business financial year' nor does it mention anything about internal mobility processes or salary adjustments outside of the cycle.",3,"The answer correctly identifies the frequency as annual, but it introduces external information not found in the source document regarding the timing ('business financial year') and the process for adjustments outside of the review cycle."
+What is the best way for me to suggest an update or report a typo in this handbook?,"The best way to suggest an update or report a typo in the handbook is to submit a change through GitHub. According to the ""Contributing to the Handbook"" section, you can follow these steps:
+
+*   **Navigate to the page:** Go to the [handbook](https://github.com/madetech/handbook) and find the page you wish to update.
+*   **Edit:** Click the pencil button in the top right corner.
+*   **Make changes:** Update the content using Markdown.
+*   **Preview and Commit:** You can preview your changes, then click ""Commit changes"" and provide a short description (e.g., ""Fix typo"").
+*   **Propose:** Click ""Propose changes"" to create a Pull Request.
+
+**Important Notes:**
+*   **Permissions:** If you do not have write permissions, Made Tech employees should ask the IT service team for access to the GitHub Made Tech Software team.
+*   **Process:** For ""uncontroversial clarifications"" (which includes spelling mistakes), you should open a pull request, announce it in relevant Slack channels, address feedback, wait for an approval, and then merge.
+*   **If you are unsure:** If you are unsure about the significance of a change, you can ask for advice on Slack or default to the strictest approval method (Significant changes or additions).",README.md,2,"The source document provides very limited information on contributing to the handbook. It only mentions opening a pull request or an issue, and directs users to a CONTRIBUTING.md file for more information. The detailed steps (pencil icon, commit process), permission requirements, and specific workflows for 'uncontroversial clarifications' provided in the answer are not present in the provided source document and appear to be external knowledge or hallucinations regarding this specific context.",2,"While the answer correctly identifies that a pull request is the primary way to contribute, it includes a significant amount of detailed procedural information that is not supported by the source document. A user relying solely on the provided text would not be able to verify or perform the steps described."
+Can I get financial help from the company to buy a bike for my commute?,"Yes, you can get financial help to purchase a bike and cycling accessories through the company's **Cycle to Work** scheme.
+
+Key details of this benefit include:
+
+*   **How it works:** You can apply for up to **£2,500** through CycleScheme to purchase a bike and accessories. You then repay this via a monthly ""salary sacrifice"" over a 12-month period.
+*   **Savings:** Because this is a salary sacrifice scheme, you do not pay tax or national insurance on the payments, which can save you between 25% and 39%.
+*   **Application Process:** You can apply via the CycleScheme portal, which is accessible through the ""CycleScheme"" tile in Bob benefits. You will need your Payroll/Employee ID number and the Employer Code found in the Bob benefits tile.
+*   **Eligibility:** You must be in only one Cycle to Work agreement at a time, and the items must be for your personal use.
+*   **Leaving the company:** If you leave Made Tech before the balance is paid off, the remaining amount will be deducted from your final salary payment.
+
+For further information, please refer to the **Cycle To Work** section of the employee handbook.",README.md,3,"The source document confirms that the company offers a 'Cycle To Work Scheme' to help pay for a bicycle, but it does not contain any of the specific details provided in the answer (such as the £2,500 limit, the 12-month repayment term, the savings percentages, the application via Bob benefits, or the policy on leaving the company). These details appear to be external knowledge or hallucinations rather than information found in the provided source.",3,"The answer correctly identifies that a cycle-to-work scheme exists, but it fails to rely on the provided source for the specific terms and conditions, instead importing details that are not in the document."
+Are there any limits on how many times I can speak with a doctor through the app?,"According to the ""Unum Help@hand"" section of the employee handbook, you are entitled to an unlimited number of video consultations with UK-based doctors through the app.",benefits/Unum_Help_at_hand.md,5,The answer accurately reflects the information provided in the source document which states there are an unlimited number of video consultations with UK-based doctors.,5,The answer is factually correct and directly addresses the user's question using the provided source material.
+Can I use this benefit to get some help with my mental health through a therapist?,"Yes, you can receive help with your mental health through a therapist using the following options:
+
+*   **Unum Help@hand:** This service provides access to therapists, typically delivered via video consultation. You can access this via the Help@hand mobile app.
+*   **Employee Assistance Programme (EAP):** This programme offers unlimited mental health consultations and support. You can access this through the Help@hand app, by emailing help-at-hand@squarehealth.com, or by calling 0333 577 7805.
+*   **Choosing your own therapist:** You are also welcome to choose your own therapist or counsellor, and the company will contribute £360 per year towards these sessions. 
+
+For further details, please refer to the ""Unum Help@hand"" and ""Paid counselling"" sections of the handbook.",benefits/Unum_Help_at_hand.md,2,"The source document mentions mental health support via Unum Help@hand, but it does not contain information regarding an Employee Assistance Programme (EAP) providing unlimited consultations via phone/email, nor does it mention a specific company contribution of £360 per year for private therapy.",2,"While the answer correctly identifies that mental health support is available through Unum Help@hand, it provides significant external information not found in the source document, leading to potential inaccuracies regarding the specific services and funding provided by the employer."
+What is the process for setting up my account and logging into the platform?,"The process for setting up and logging into the platform depends on which account you are accessing:
+
+### **Playground Account**
+1. **Request Access:** Request a new user account in the `#cop-cloud` Slack channel in the `SandboxUsers` group.
+2. **Credentials:** AWS SSO login credentials will be emailed to you.
+3. **Setup:** Follow the provided instructions to set up MFA.
+4. **Login:** Log in via [https://madetech.awsapps.com/start/](https://madetech.awsapps.com/start/).
+
+### **DevOps Pairing Interviews Account**
+*Note: Access is only granted to employees conducting DevOps pairing interviews.*
+1. **Request Access:** Request to be added to the `DevopsPairingInterviewer` group in the `#cop-cloud` Slack channel.
+2. **Login:** Once access is granted, you can log in via the SSO start page at [https://madetech.awsapps.com/start/](https://madetech.awsapps.com/start/).
+
+### **CLI Setup**
+For both accounts, you must add the specific configuration details for your profile to your `~/.aws/config` file as outlined in the ""Made Tech AWS Sandbox"" section of the handbook. You can then log in using the `aws sso login` command with the appropriate profile.
+
+***
+
+**General Company Onboarding**
+For other company tools (such as Slack, G Suite, HiBob, etc.), these are set up by the company ahead of your first day. You will receive your new Made Tech email address to join your onboarding calls, where you will be guided through the use of these tools.",benefits/Unum_Help_at_hand.md,1,"The provided source document is exclusively about a benefit called 'Unum Help@hand' and does not contain any information about AWS, Slack, DevOps, or account setup procedures for the platform mentioned in the answer.",1,"The answer fails to address the content of the provided source document entirely, as it discusses completely different systems and processes not present in the source."
+Does this service cover sessions for physical therapy or should I go elsewhere?,"Yes, the Unum Help@hand service includes ""Physiotherapy: Consultation and treatment with a network of physiotherapists."" 
+
+You can access this benefit via the Help@hand mobile app, or by contacting them at help-at-hand@squarehealth.com or 0333 577 7805.",benefits/Unum_Help_at_hand.md,5,The answer accurately reflects the information in the source document regarding the inclusion of physiotherapy and the correct contact details for accessing the service.,5,The answer directly addresses the user's question and provides the necessary actionable information to access the benefit.
+Is it possible to consult with a different specialist if I need a second opinion on a medical issue?,"Yes, you can access medical second opinions through the Unum Help@hand service. This benefit is available to all team members and provides access to UK-based private consultants. You can access this service by downloading the app and logging in with the details provided in your invitation email.",benefits/Unum_Help_at_hand.md,5,"Every claim in the answer is directly supported by the source document, which explicitly lists 'Medical second opinions: Access to UK based private consultants' as a feature and confirms the access method and eligibility.",5,The answer is factually correct and fully addresses the user's question based on the provided text.
