@@ -3,6 +3,9 @@
 A **retrieval-augmented generation (RAG)** application that answers employees' questions about their organisation using only the official employee handbook as its source of truth.
 
 The application retrieves the most relevant handbook sections, generates accurate, citation-backed answers, and declines to answer questions that aren't covered by the handbook instead of hallucinating information.
+
+The project is **generic** — it can be pointed at any organisation's handbook. In this project it is set up with the open-source [**Made Tech Handbook**](https://github.com/madetech/handbook) as its example datasource.
+
 ## Table of contents
 
 - [Problem](#problem)
@@ -15,7 +18,7 @@ The application retrieves the most relevant handbook sections, generates accurat
 - [Getting Started](#getting-started)
 - [Project structure](#project-structure)
 - [Configuration](#configuration)
-- [Known limitations](#known-limitations)
+- [Credits](#credits)
 
 ---
 
@@ -284,12 +287,6 @@ All configuration is via environment variables (see [`.env.example`](.env.exampl
 
 ---
 
-## Known limitations
+## Credits
 
-- **Single-conversation UI** — the Streamlit app starts a new conversation per browser session; there is no conversation list/picker yet (history data is already persisted, see `conversations` / `messages`).
-- **Structured outputs required for eval paths** — `generate-ground-truth` and both judge flows call `client.beta.chat.completions.parse` with a JSON schema. Your LLM endpoint must support structured outputs; many local servers (e.g. Ollama) need this enabled explicitly.
-- **Doc-level relevance** — retrieval evaluation measures whether the *expected document* appears in the top-k; it does not score passage-level relevance within a document.
-- **CPU baselines** — the embedder and reranker are small CPU-only ONNX models; they are fast and dependency-free, not state-of-the-art.
-- **Stale eval artifacts** — the checked-in files under `data/evaluation/` come from earlier runs (some use an older schema, e.g. `avg_correctness`). Regenerate with the current commands before relying on the numbers.
-
----
+This project is demonstrated against the open-source [**Made Tech Handbook**](https://github.com/madetech/handbook), maintained by [Made Tech](https://www.madetech.com/). The handbook content used as sample data belongs to Made Tech and is fetched from their public repository under its own terms. Thanks to Made Tech for making it publicly available — it's a great resource for testing this assistant.
