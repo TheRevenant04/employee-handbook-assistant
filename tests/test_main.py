@@ -12,7 +12,7 @@ class TestMain:
             with pytest.raises(SystemExit) as exc:
                 main()
 
-        assert exc.value.code == 1
+        assert exc.value.code == 2
 
     def test_unknown_command(self):
         from src.main import main
@@ -21,12 +21,12 @@ class TestMain:
             with pytest.raises(SystemExit) as exc:
                 main()
 
-        assert exc.value.code == 1
+        assert exc.value.code == 2
 
     def test_ui_command(self):
         from src.main import main
 
-        with patch("src.ui.streamlit_app.main") as mock_fn:
+        with patch("src.main.run_ui") as mock_fn:
             with patch.object(sys, "argv", ["main", "ui"]):
                 main()
 
@@ -35,7 +35,7 @@ class TestMain:
     def test_ingest_command(self):
         from src.main import main
 
-        with patch("src.ingestion.pipeline.main") as mock_fn:
+        with patch("src.main.run_ingest") as mock_fn:
             with patch.object(sys, "argv", ["main", "ingest"]):
                 main()
 
@@ -44,7 +44,7 @@ class TestMain:
     def test_evaluate_search_command(self):
         from src.main import main
 
-        with patch("src.evaluation.search_eval.main") as mock_fn:
+        with patch("src.main.run_evaluate_search") as mock_fn:
             with patch.object(sys, "argv", ["main", "evaluate-search"]):
                 main()
 
@@ -53,7 +53,7 @@ class TestMain:
     def test_evaluate_llm_command(self):
         from src.main import main
 
-        with patch("src.evaluation.llm_eval.main") as mock_fn:
+        with patch("src.main.run_evaluate_llm") as mock_fn:
             with patch.object(sys, "argv", ["main", "evaluate-llm"]):
                 main()
 
@@ -62,7 +62,7 @@ class TestMain:
     def test_generate_ground_truth_command(self):
         from src.main import main
 
-        with patch("src.evaluation.datasets.main") as mock_fn:
+        with patch("src.main.run_generate_ground_truth") as mock_fn:
             with patch.object(sys, "argv", ["main", "generate-ground-truth"]):
                 main()
 
