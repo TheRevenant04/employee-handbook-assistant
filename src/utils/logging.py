@@ -6,10 +6,6 @@ from collections import OrderedDict
 from datetime import datetime, timezone
 
 
-LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FORMAT: str = os.getenv("LOG_FORMAT", "json")
-
-
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         data = OrderedDict()
@@ -34,10 +30,11 @@ class JsonFormatter(logging.Formatter):
 def configure_logging():
     if logging.getLogger().hasHandlers():
         return
-    level = getattr(logging, LOG_LEVEL, logging.INFO)
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, log_level, logging.INFO)
     handler = logging.StreamHandler()
 
-    if LOG_FORMAT == "json":
+    if os.getenv("LOG_FORMAT", "text") == "json":
         handler.setFormatter(JsonFormatter())
     else:
         handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
