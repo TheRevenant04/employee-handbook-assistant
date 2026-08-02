@@ -60,14 +60,17 @@ services:
     pull_policy: always
     user: "root"
     command: server standalone
-    env_file:
-      - .env
     volumes:
       - kestra_data:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/kestra-wd:/tmp/kestra-wd
     networks: [appnet]
     environment:
+      PGHOST: app_postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER}
+      SECRET_PGPASSWORD: ${SECRET_PGPASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
       KESTRA_CONFIGURATION: |
         datasources:
           postgres:
@@ -88,6 +91,9 @@ services:
               basePath: "/app/storage"
           queue:
             type: postgres
+          variables:
+            env-vars-prefix: ""
+            redacted-env-vars: "KESTRA_PLUGINS_PATH,KESTRA_CONFIGURATION_PATH,KESTRA_CONFIGURATION,KESTRA_JAVA_OPTS,SECRET_PGPASSWORD"
           tasks:
             tmpDir:
               path: /tmp/kestra-wd/tmp
