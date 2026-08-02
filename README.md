@@ -33,11 +33,7 @@ This project solves that with a **grounded Q&A assistant**:
 
 ## Demo
 
-See the assistant in action:
-
-<p align="center">
-  <video controls src="https://github.com/user-attachments/assets/febbdf5c-11ca-45a9-b138-c0e93c12f2f3"></video>
-</p>
+![Assistant Demo](https://github.com/user-attachments/assets/febbdf5c-11ca-45a9-b138-c0e93c12f2f3)
 
 ---
 
@@ -47,7 +43,7 @@ See the assistant in action:
 **Chat UI** — ask a question, get a grounded answer, and rate it (👍 / 👎):
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/8fc58953-b6b6-4d45-aa55-e185119735f7" alt="Chat UI">
+  <img src="https://github.com/user-attachments/assets/67cd449a-73df-4b38-a391-4b038ed32fbf" alt="Chat UI">
 </p>
 
 **Monitoring dashboard** — Grafana panels tracking message volume, latency, token usage, cost, error rates, and evaluation scores:
