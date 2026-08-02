@@ -25,6 +25,26 @@ def _make_db_mock(fetchall_return):
     return conn_cm, mock_cursor
 
 
+def _make_stream_chunk(content=None, usage=None):
+    """Create a fake OpenAI streaming chunk."""
+    chunk = MagicMock()
+    if content is None:
+        chunk.choices = []
+    else:
+        choice = MagicMock()
+        choice.delta.content = content
+        chunk.choices = [choice]
+    chunk.usage = usage
+    return chunk
+
+
+def _make_usage(prompt_tokens, completion_tokens):
+    usage = MagicMock()
+    usage.prompt_tokens = prompt_tokens
+    usage.completion_tokens = completion_tokens
+    return usage
+
+
 class TestRAGInit:
     def test_init_with_defaults(self, mock_embedder, mock_llm_client, mock_chat_store, mock_metrics):
         rag = RAG(
@@ -227,6 +247,62 @@ class TestRAGLLM:
         assert call_kwargs["model"] == "my-model"
         assert call_kwargs["messages"][0]["content"] == "system prompt"
         assert call_kwargs["messages"][1]["content"] == "user prompt"
+
+
+class TestRAGLLMStream:
+    def test_llm_stream_yields_content_and_tracks_usage(
+        self, mock_embedder, mock_chat_store, mock_metrics
+    ):
+        usage = _make_usage(100, 50)
+        chunks = [
+            _make_stream_chunk(content="Hello"),
+            _make_stream_chunk(content=" world"),
+            _make_stream_chunk(usage=usage),
+        ]
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = chunks
+
+        rag = RAG(
+            embedder=mock_embedder,
+            llm_client=mock_client,
+            chat_store=mock_chat_store,
+            cost_per_input_token=0.001,
+            cost_per_output_token=0.002,
+            metrics=mock_metrics,
+        )
+        holder = {}
+        text = "".join(rag.llm_stream("prompt", usage_holder=holder))
+
+        assert text == "Hello world"
+        assert holder["input_tokens"] == 100
+        assert holder["output_tokens"] == 50
+        assert holder["cost"] == pytest.approx(0.2)
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs["stream"] is True
+        assert call_kwargs["stream_options"] == {"include_usage": True}
+
+    def test_llm_stream_falls_back_without_stream_options(
+        self, mock_embedder, mock_chat_store, mock_metrics
+    ):
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = [
+            Exception("unknown parameter"),
+            [_make_stream_chunk(content="ok")],
+        ]
+
+        rag = RAG(
+            embedder=mock_embedder,
+            llm_client=mock_client,
+            chat_store=mock_chat_store,
+            metrics=mock_metrics,
+        )
+        holder = {}
+        text = "".join(rag.llm_stream("prompt", usage_holder=holder))
+
+        assert text == "ok"
+        assert mock_client.chat.completions.create.call_count == 2
+        last_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "stream_options" not in last_kwargs
 
 
 class TestRAGVectorSearch:
@@ -467,4 +543,80 @@ class TestRAGRag:
             rag.rag("query", conversation_id=1)
 
         mock_evaluator.evaluate.assert_not_called()
+
+
+class TestRAGRagStream:
+    @patch("src.rag.answer_chain.get_connection")
+    def test_rag_stream_full_pipeline(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics):
+        conn_cm, mock_cursor = _make_db_mock([(1, "path", "content", 0.3)])
+        mock_get_conn.return_value = conn_cm
+
+        usage = _make_usage(100, 20)
+        chunks = [
+            _make_stream_chunk(content="The "),
+            _make_stream_chunk(content="answer."),
+            _make_stream_chunk(usage=usage),
+        ]
+        mock_llm = MagicMock()
+        mock_llm.chat.completions.create.return_value = chunks
+
+        rag = RAG(
+            embedder=mock_embedder,
+            llm_client=mock_llm,
+            chat_store=mock_chat_store,
+            metrics=mock_metrics,
+        )
+        holder = {}
+        text = "".join(rag.rag_stream("What is the policy?", conversation_id=1, result_holder=holder))
+
+        assert text == "The answer."
+        assert holder["answer"] == "The answer."
+        assert holder["id"] == 1
+        assert holder["input_tokens"] == 100
+        assert holder["output_tokens"] == 20
+        mock_chat_store.add_message.assert_called_once()
+        mock_chat_store.record_metrics.assert_called_once()
+
+    @patch("src.rag.answer_chain.get_connection")
+    def test_rag_stream_records_error_on_failure(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics):
+        conn_cm, mock_cursor = _make_db_mock([])
+        mock_cursor.fetchall.side_effect = Exception("DB error")
+        mock_get_conn.return_value = conn_cm
+
+        rag = RAG(
+            embedder=mock_embedder,
+            llm_client=MagicMock(),
+            chat_store=mock_chat_store,
+            metrics=mock_metrics,
+        )
+
+        with pytest.raises(Exception, match="DB error"):
+            "".join(rag.rag_stream("query", conversation_id=1))
+
+        mock_metrics.record_error.assert_called_once()
+        mock_chat_store.record_metrics.assert_called_once()
+        call_kwargs = mock_chat_store.record_metrics.call_args[1]
+        assert call_kwargs["success"] is False
+        assert call_kwargs["input_tokens"] == 0
+
+    @patch("src.rag.answer_chain.get_connection")
+    def test_rag_stream_calls_evaluator(self, mock_get_conn, mock_embedder, mock_chat_store, mock_metrics, mock_evaluator):
+        conn_cm, mock_cursor = _make_db_mock([(1, "path", "content", 0.3)])
+        mock_get_conn.return_value = conn_cm
+
+        usage = _make_usage(10, 5)
+        chunks = [_make_stream_chunk(content="answer"), _make_stream_chunk(usage=usage)]
+        mock_llm = MagicMock()
+        mock_llm.chat.completions.create.return_value = chunks
+
+        rag = RAG(
+            embedder=mock_embedder,
+            llm_client=mock_llm,
+            chat_store=mock_chat_store,
+            metrics=mock_metrics,
+            evaluator=mock_evaluator,
+        )
+        "".join(rag.rag_stream("query", conversation_id=1))
+
+        mock_evaluator.evaluate.assert_called_once()
 

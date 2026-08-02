@@ -93,7 +93,7 @@ class TestStreamlitApp:
             load_conversation_history(assistant)
             assistant.chat_store.get_messages.assert_not_called()
 
-    def test_error_during_query_exits_spinner_before_stop(self):
+    def test_error_during_streaming_stops(self):
         from streamlit.runtime.scriptrunner_utils.exceptions import StopException
 
         from src.ui.streamlit_app import main
@@ -105,39 +105,77 @@ class TestStreamlitApp:
             def __setattr__(self, key, value):
                 self[key] = value
 
-        calls = []
+        def failing_stream(*args, **kwargs):
+            def gen():
+                raise RuntimeError("boom")
+                yield  # pragma: no cover
 
-        class RecordingSpinner:
-            def __init__(self, *args, **kwargs):
-                pass
-
-            def __enter__(self):
-                calls.append("spinner_enter")
-
-            def __exit__(self, *args):
-                calls.append("spinner_exit")
-                return False
+            return gen()
 
         def fake_stop():
-            calls.append("stop")
             raise StopException
 
         with patch("src.ui.streamlit_app.st") as mock_st:
+            assistant = MagicMock()
+            assistant.chat_store = MagicMock()
+            assistant.rag_stream = failing_stream
             mock_st.session_state = SessionState(
-                assistant=MagicMock(rag=MagicMock(side_effect=RuntimeError("boom"))),
+                assistant=assistant,
                 conversation_id=None,
                 messages=[],
             )
-            mock_st.session_state.assistant.chat_store = MagicMock()
             mock_st.chat_input.return_value = "my question"
             mock_st.chat_message.return_value.__enter__ = MagicMock(return_value=None)
             mock_st.chat_message.return_value.__exit__ = MagicMock(return_value=False)
-            mock_st.spinner = RecordingSpinner
+            mock_st.write_stream.side_effect = lambda stream: "".join(stream)
             mock_st.stop.side_effect = fake_stop
 
             with pytest.raises(StopException):
                 main()
 
-        assert calls == ["spinner_enter", "spinner_exit", "stop"]
         mock_st.error.assert_called_once_with("Something went wrong. Please try again.")
+
+    def test_successful_stream_appends_message_without_rerun(self):
+        from src.ui.streamlit_app import main
+
+        class SessionState(dict):
+            def __getattr__(self, key):
+                return self[key]
+
+            def __setattr__(self, key, value):
+                self[key] = value
+
+        def ok_stream(*args, **kwargs):
+            def gen():
+                yield "Hello"
+                yield " world"
+
+            return gen()
+
+        with patch("src.ui.streamlit_app.st") as mock_st:
+            assistant = MagicMock()
+            assistant.chat_store = MagicMock()
+            assistant.chat_store.create_conversation.return_value = 10
+            assistant.rag_stream = ok_stream
+            mock_st.session_state = SessionState(
+                assistant=assistant,
+                conversation_id=None,
+                messages=[],
+            )
+            mock_st.chat_input.return_value = "hi"
+            mock_st.chat_message.return_value.__enter__ = MagicMock(return_value=None)
+            mock_st.chat_message.return_value.__exit__ = MagicMock(return_value=False)
+            mock_st.write_stream.side_effect = lambda stream: "".join(stream)
+            mock_st.columns.return_value = [MagicMock(), MagicMock(), MagicMock()]
+            mock_st.button.return_value = False
+
+            main()
+
+        assert len(mock_st.session_state.messages) == 1
+        msg = mock_st.session_state.messages[0]
+        assert msg["question"] == "hi"
+        assert msg["answer"] == "Hello world"
+        assert msg["rating"] is None
+        assert isinstance(msg["id"], str) and msg["id"]
+        mock_st.rerun.assert_not_called()
 
