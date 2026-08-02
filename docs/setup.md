@@ -326,7 +326,7 @@ These are honoured by the code but aren't shipped in the example env file:
 | --- | --- | --- |
 | `CONNECT_TIMEOUT` | DB connect timeout (seconds) | `10` |
 | `LOG_LEVEL` | Root log level (`DEBUG`/`INFO`/`WARNING`/`ERROR`) | `INFO` |
-| `LOG_FORMAT` | `json` (structured) or `text` | `json` |
+| `LOG_FORMAT` | `text` (human-readable) or `json` (structured) | `text` |
 | `RAG_MAX_RETRIES` | Retries for a single LLM answer call | `3` |
 | `RAG_RETRY_BASE_DELAY` | Backoff base for the LLM answer call (seconds) | `2` |
 | `EVAL_WORKERS` | Threads for the online sampled judge | `1` |
