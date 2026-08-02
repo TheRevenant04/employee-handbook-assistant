@@ -213,8 +213,6 @@ Dev group: `jupyter` 1.1.1, `pytest` 9.1.1, `pytest-mock` 3.15.1, `pytest-dotenv
 | --- | --- | --- |
 | App | built from `Dockerfile` (Python 3.13) | Streamlit UI + RAG pipeline |
 | `app_postgres` | `pgvector/pgvector:pg18` | Vector store with HNSW indexing and full-text search |
-| `kestra` | `kestra/kestra:v1.3.28` | Scheduled/triggered ingestion workflow |
-| `kestra_postgres` | `postgres:18` | Kestra's metadata store |
 | `grafana` | `grafana/grafana:11.2.2` | Observability dashboard over the metrics tables |
 
 The app connects to any **OpenAI-compatible LLM API** (Gemini via its OpenAI-compatible endpoint, OpenAI, Ollama, vLLM, etc.) for generation, query rewriting, ground-truth generation, and LLM-as-judge evaluation.
@@ -223,7 +221,7 @@ The app connects to any **OpenAI-compatible LLM API** (Gemini via its OpenAI-com
 
 ## Getting Started
 
-To get the project up and running, follow the [**Setup guide**](docs/setup.md). It covers everything you need beforehand — Python 3.13+, PostgreSQL with pgvector, and an OpenAI-compatible LLM endpoint — then walks you through configuring the environment, downloading the models, initialising the database, and starting the stack either locally or with Docker (app, pgvector, Kestra, and Grafana).
+To get the project up and running, follow the [**Setup guide**](docs/setup.md). It covers everything you need beforehand — Python 3.13+, PostgreSQL with pgvector, and an OpenAI-compatible LLM endpoint — then walks you through configuring the environment, downloading the models, initialising the database, and starting the stack either locally or with Docker (app, pgvector, and Grafana).
 
 Once it's running, the [**Usage guide**](docs/usage.md) explains the workflow: ingesting the handbook, generating ground truth, running evaluations, and chatting with the assistant in the UI — along with example inputs and outputs.
 
@@ -258,7 +256,6 @@ Once it's running, the [**Usage guide**](docs/usage.md) explains the workflow: i
 │   ├── download_models.py      # Fetch ONNX models from Hugging Face
 │   └── init_database.py        # Create DB + run database/init.sql
 ├── database/init.sql           # Full schema (documents, chats, metrics, eval, errors)
-├── flows/ingest-handbook.yaml  # Kestra workflow for ingestion
 ├── grafana/                    # Provisioned dashboard + datasource
 ├── docs/                       # Setup and usage guides (+ screenshots)
 ├── data/                       # Ground truth + evaluation outputs (gitignored)

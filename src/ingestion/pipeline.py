@@ -27,7 +27,7 @@ def fetch_markdown_files() -> list[dict[str, str]]:
     session.headers.update(
         {
             "Accept": "application/vnd.github+json",
-            "User-Agent": "kestra-ingest-worker",
+            "User-Agent": "employee-handbook-assistant",
         }
     )
 

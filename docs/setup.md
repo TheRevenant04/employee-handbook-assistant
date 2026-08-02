@@ -12,11 +12,10 @@ This guide explains how to get the Employee Handbook Assistant running. There ar
 | You need installed | Python 3.13+, [uv](https://docs.astral.sh/uv/), PostgreSQL with pgvector | Docker + Docker Compose |
 | Database | You install/manage PostgreSQL + pgvector | Included (`pgvector/pgvector:pg18`) |
 | Grafana monitoring | Not included — set up yourself | Included, pre-provisioned |
-| Kestra orchestration | Not included | Included |
 | Best for | Developers who want full control and minimal overhead | A fast, reproducible, full-stack run |
 
 **Choose Local if** you already have Python and PostgreSQL, want to inspect/tweak the code, or want to avoid Docker.
-**Choose Docker if** you want the whole stack — app, vector database, Grafana dashboard, and Kestra — up with one command, and don't want to manage PostgreSQL yourself.
+**Choose Docker if** you want the whole stack — app, vector database, and Grafana dashboard — up with one command, and don't want to manage PostgreSQL yourself.
 
 - Go to the **[Local setup](#3-local-setup)** → you need the *common requirements* in section 2, then section 3.
 - Go to the **[Docker setup](#4-docker-setup)** → you need the *common requirements* in section 2, then section 4.
@@ -148,7 +147,7 @@ See [`docs/usage.md`](usage.md) for the full command reference and workflow.
 
 ## 4. Docker setup
 
-Run the entire stack — app, vector database, Kestra, and Grafana — in containers with one command.
+Run the entire stack — app, vector database, and Grafana — in containers with one command.
 
 ### 4.1 Install Docker and clone the repo
 
@@ -182,12 +181,6 @@ POSTGRES_DB=employee_handbook
 POSTGRES_USER=user
 POSTGRES_PASSWORD=password
 
-# Kestra
-POSTGRES_PASSWORD=password        # Kestra's own metadata DB (same value is fine)
-KESTRA_BASIC_AUTH_USERNAME=admin
-KESTRA_BASIC_AUTH_PASSWORD=changeme
-GEMINI_API_KEY=your-gemini-key    # optional, enables Kestra's AI assistant
-
 # Grafana datasource (must point at the *app* PostgreSQL)
 GRAFANA_PG_HOST=app_postgres:5432
 GRAFANA_PG_USER=user
@@ -201,14 +194,12 @@ GRAFANA_DB_NAME=employee_handbook
 docker compose up -d
 ```
 
-First run builds the app image (which downloads the ONNX models); afterwards it just starts the five services:
+First run builds the app image (which downloads the ONNX models); afterwards it just starts the three services:
 
 | Service | Image | Port | Purpose |
 | --- | --- | --- | --- |
 | `app` | built from `Dockerfile` | `8501` | Streamlit chat UI |
 | `app_postgres` | `pgvector/pgvector:pg18` | `7432` | Vector store + app schema |
-| `kestra` | `kestra/kestra:v1.3.28` | `8082` (UI), `8081` | Workflow orchestration |
-| `kestra_postgres` | `postgres:18` | internal | Kestra's own metadata store |
 | `grafana` | `grafana/grafana:11.2.2` | `3000` | Monitoring dashboard |
 
 Two notes:
@@ -224,7 +215,6 @@ docker compose exec app python -m src.main ingest
 
 - **Chat UI** → http://localhost:8501
 - **Grafana** → http://localhost:3000 (log in with `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` from `.env`, defaults `admin` / `changeme`). It is pre-provisioned with a PostgreSQL datasource and the **Employee Handbook RAG Metrics** dashboard.
-- **Kestra** → http://localhost:8082 (log in with `KESTRA_BASIC_AUTH_USERNAME` / `KESTRA_BASIC_AUTH_PASSWORD`). It ships a flow at `flows/ingest-handbook.yaml` that installs `uv`, downloads the models, and runs the ingestion pipeline — trigger it from the Kestra UI.
 
 ---
 
@@ -327,9 +317,6 @@ All variables are optional unless marked **required**.
 | `GF_SECURITY_ADMIN_PASSWORD` | Grafana admin password | `changeme` |
 | `GRAFANA_PG_HOST` / `GRAFANA_PG_USER` / `GRAFANA_PG_PASSWORD` / `GRAFANA_DB_NAME` | Datasource connection for the dashboard | — |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Docker `app_postgres` bootstrap | — |
-| `POSTGRES_PASSWORD` | Kestra metadata DB password | — |
-| `KESTRA_BASIC_AUTH_USERNAME` / `KESTRA_BASIC_AUTH_PASSWORD` | Kestra UI auth | — |
-| `GEMINI_API_KEY` | Kestra AI (Gemini) integration | — |
 
 ### Advanced (read in code, not in `.env.example`)
 
@@ -344,10 +331,6 @@ These are honoured by the code but aren't shipped in the example env file:
 | `RAG_RETRY_BASE_DELAY` | Backoff base for the LLM answer call (seconds) | `2` |
 | `EVAL_WORKERS` | Threads for the online sampled judge | `1` |
 | `INIT_SQL_PATH` | Schema file for `scripts/init_database.py` | `database/init.sql` |
-
-### Kestra flow variables
-
-`flows/ingest-handbook.yaml` templates its settings from `{{ envs.* }}` variables (`github_owner`, `github_repo`, `github_branch`, `pghost`, `pgport`, `pgdatabase`, `pguser`, `pgpassword`, `table_name`, `vector_dim`, `model_path`). Configure these as **namespace variables in the Kestra UI** before triggering the flow. The repo's `.env` includes `ENV_*`-prefixed counterparts (e.g. `ENV_GITHUB_OWNER`) as a hint for mapping them.
 
 ---
 
