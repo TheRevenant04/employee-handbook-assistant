@@ -61,16 +61,7 @@ uv run python scripts/init_database.py          # or: docker compose up -d app_p
 # 2. Fill the vector store
 uv run python -m src.main ingest
 
-# 3. (Optional) Build a ground-truth dataset for evaluation
-uv run python -m src.main generate-ground-truth
-
-# 4. (Optional) Compare retrieval strategies
-uv run python -m src.main evaluate-search
-
-# 5. (Optional) Judge answer quality end-to-end (requires JUDGE_* vars)
-uv run python -m src.main evaluate-llm
-
-# 6. Chat with the assistant
+# 3. Chat with the assistant
 uv run python -m src.main ui
 ```
 
@@ -89,17 +80,31 @@ docker compose up -d
 # 2. Fill the vector store (runs inside the app container, typed from the host)
 docker compose exec app python -m src.main ingest
 
-# 3. (Optional) Build a ground-truth dataset for evaluation
-docker compose exec app python -m src.main generate-ground-truth
-
-# 4. (Optional) Compare retrieval strategies
-docker compose exec app python -m src.main evaluate-search
-
-# 5. (Optional) Judge answer quality end-to-end (requires JUDGE_* vars)
-docker compose exec app python -m src.main evaluate-llm
-
-# 6. Chat with the assistant → http://localhost:8501
+# 3. Chat with the assistant → http://localhost:8501
 #    (the UI is already up from step 0)
+```
+
+### Optional: evaluation commands
+
+These three steps are **not** required to run the assistant. Use them when you want to measure retrieval or answer quality:
+
+```bash
+# Build a ground-truth dataset for evaluation
+uv run python -m src.main generate-ground-truth
+
+# Compare retrieval strategies
+uv run python -m src.main evaluate-search
+
+# Judge answer quality end-to-end (requires JUDGE_* vars)
+uv run python -m src.main evaluate-llm
+```
+
+With the Docker setup, run them inside the app container instead:
+
+```bash
+docker compose exec app python -m src.main generate-ground-truth
+docker compose exec app python -m src.main evaluate-search
+docker compose exec app python -m src.main evaluate-llm
 ```
 
 ### A note on order
